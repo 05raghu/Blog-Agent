@@ -85,9 +85,9 @@ export default function Home() {
           <p>
             🚀 <strong>Blog Agent</strong> — Marketing MVP
           </p>
-          {/* <p className="mt-2">
+          <p className="mt-2">
             Built with Next.js, Claude API, and Drizzle ORM
-          </p> */}
+          </p>
         </div>
       </div>
     </main>
