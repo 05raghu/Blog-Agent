@@ -77,11 +77,17 @@ All tokens are CSS variables in `apps/web/app/globals.css`, ready for swapping l
 
 ## Environment Variables
 
-See `.env.example` for complete list. Key categories:
+Copy `.env.example` to `.env.local` and fill in your credentials:
 
-- **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`
-- **Integration modes:** `TEXT_MODEL_MODE`, `IMAGE_MODEL_MODE`, `WORDPRESS_MODE`, `GA4_MODE`, `GSC_MODE`, `FORM_WEBHOOK_MODE` (default: `mock`)
-- **Live credentials:** Only needed if mode is `live` (optional at startup)
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Key variables:
+- **OpenAI API Key:** `OPENAI_API_KEY` (for live text generation; optional, uses mock by default)
+- **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` (optional for full V1; not needed for MVP demo)
+
+The system runs in **mock mode by default** — no API keys required to test the demo.
 
 ## Key Concepts
 
@@ -143,22 +149,24 @@ pnpm db:push
 pnpm db:studio
 ```
 
-## PRD & Planning
+## Documentation
 
-- **Product Requirement Doc:** `BLOG_AGENT_PRD.md` (attached in initial request)
-- **Implementation Plan:** `/Users/raghu/.claude/plans/i-have-attached-the-composed-bee.md`
-- **Scaffold Summary:** `SCAFFOLD_SESSION_SUMMARY.md` (this session's deliverables)
-- **Progress:** `/Users/raghu/.claude/projects/-Users-raghu-React-Blog-agent/memory/project_scaffold_progress.md`
+- **Architecture:** See `docs/architecture.md` for system design, adapter pattern, and RLS strategy
+- **Implementation Roadmap:** Follow the PRD sections P0.1–P0.9 for feature sequencing
 
-## Next Steps
+## Current Status
 
-1. **Fill in integration adapters** (text-model mock/live, image-model mock, WordPress mock)
-2. **Implement domain logic** (workflow state machine, opportunity/publish-readiness scoring, approval gates, voice analyzer)
-3. **Wire auth & RBAC** (Supabase Auth + Membership role guards)
-4. **Build V0 golden path** (workspace → ingest source → generate draft → edit → approve → publish → form tracking)
-5. **Implement P0.1–P0.9** (strategy, topics, calendar, SME briefing, critic loop, WordPress safety, analytics, healing)
+✅ **Completed:**
+- V0 MVP demo (blog article generation + AI critique)
+- OpenAI GPT-4o-mini integration
+- Codewave brand system applied
+- Mock fallback (no API keys required)
 
-See `SCAFFOLD_SESSION_SUMMARY.md` for detailed remaining work.
+📍 **Next Milestones (PRD sequence):**
+1. **P0.1–P0.4:** Strategy configuration, workspace/RBAC, topic scoring, knowledge ingestion, SME briefing
+2. **P0.5–P0.6:** Draft → Edit → Approve workflow, SEO, internal links, image selection
+3. **P0.7–P0.8:** WordPress publishing, analytics, healing proposals
+4. **P0.9:** Cross-workspace isolation, audit logging, compliance
 
 ## License
 
