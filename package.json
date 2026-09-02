@@ -1,0 +1,33 @@
+{
+  "name": "blog-agent-monorepo",
+  "version": "0.1.0",
+  "description": "Blog Agent - V1 Content Operating System for Codewave",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter ./apps/web dev",
+    "build": "pnpm --filter ./apps/web build",
+    "start": "pnpm --filter ./apps/web start",
+    "worker": "pnpm --filter ./apps/worker start",
+    "db:push": "pnpm --filter @blog-agent/db db:push",
+    "db:migrate": "pnpm --filter @blog-agent/db db:migrate",
+    "db:studio": "pnpm --filter @blog-agent/db db:studio",
+    "test": "pnpm --filter ./packages --filter ./apps run test",
+    "test:unit": "vitest run --dir packages",
+    "test:integration": "vitest run --dir tests/integration",
+    "test:e2e": "playwright test",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  },
+  "dependencies": {
+    "openai": "^7.9.0"
+  }
+}

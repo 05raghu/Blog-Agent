@@ -1,0 +1,27 @@
+{
+  "name": "@blog-agent/db",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "db:generate": "drizzle-kit generate:pg",
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "node --loader tsx ./src/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "drizzle-kit drop",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.29.1",
+    "pg": "^8.11.3",
+    "pgvector": "^0.1.1",
+    "@supabase/supabase-js": "^2.38.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.11.2",
+    "drizzle-kit": "^0.20.13",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0"
+  }
+}

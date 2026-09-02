@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Codewave Brand Tokens — CSS Variables
+   ============================================================================ */
+
+:root {
+  /* Colors — Editorial inks */
+  --cw-ink-950: #0a0a0b;
+  --cw-parchment: #ede7da;
+  --cw-signal: #a8dde8;
+  /* Cyan — observed, selected, authored */
+  --cw-copper: #b3733e;
+  /* Material interruption */
+  --cw-slate: #3c4a48;
+  /* Grounding, shadow */
+  --cw-azure: #438fe7;
+  /* Expansive campaign */
+  --cw-sulphur: #f2ec67;
+  /* Friction, counterpoint */
+  --cw-ember: #e66d3a;
+  /* Catalytic interruption */
+  --cw-iris: #6552c7;
+  /* Speculative editorial */
+
+  /* Typography — Font families (substitutes for commercial Signifier/Söhne) */
+  --cw-font-display: 'Fraunces', serif;
+  --cw-font-body: 'Inter', sans-serif;
+  --cw-font-mono: 'IBM Plex Mono', monospace;
+
+  /* Type scale */
+  --cw-type-hero-size: 72px;
+  --cw-type-section-size: 52px;
+  --cw-type-editorial-size: 32px;
+  --cw-type-lead-size: 17px;
+  --cw-type-body-size: 16px;
+  --cw-type-label-size: 11px;
+  --cw-type-line-height: 1.55;
+
+  /* Controls */
+  --cw-control-radius: 45px;
+  --cw-control-height: 52px;
+
+  /* Spacing */
+  --cw-rhythm: 1.55em;
+
+  /* Motion */
+  --cw-motion-collapse: 640ms;
+  --cw-motion-entangle: 960ms;
+  --cw-motion-interfere: 640ms;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--cw-parchment);
+  color: var(--cw-ink-950);
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-type-body-size);
+  line-height: var(--cw-type-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1 {
+  font-family: var(--cw-font-display);
+  font-size: var(--cw-type-hero-size);
+  line-height: 0.84;
+  font-weight: 400;
+}
+
+h2 {
+  font-family: var(--cw-font-display);
+  font-size: var(--cw-type-section-size);
+  line-height: 0.88;
+  font-weight: 400;
+}
+
+h3 {
+  font-family: var(--cw-font-display);
+  font-size: var(--cw-type-editorial-size);
+  line-height: 1;
+  font-weight: 400;
+}
+
+.lead {
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-type-lead-size);
+  line-height: var(--cw-type-line-height);
+  font-weight: 400;
+}
+
+code,
+pre {
+  font-family: var(--cw-font-mono);
+  font-size: var(--cw-type-label-size);
+}
+
+/* Button base styles (Tier 01 & Tier 02) */
+@layer components {
+
+  /* Tier 01 — Resolved Primary (Observed) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-cw font-medium text-base;
+    background-color: var(--cw-signal);
+    color: var(--cw-ink-950);
+    border: none;
+    cursor: pointer;
+    transition: all 240ms cubic-bezier(0.4, 0, 0.2, 1);
+    height: var(--cw-control-height);
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Tier 02 — Quiet Secondary (Available) */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-cw font-medium text-base;
+    background-color: transparent;
+    color: var(--cw-ink-950);
+    border: 1px solid var(--cw-ink-950);
+    cursor: pointer;
+    transition: all 240ms cubic-bezier(0.4, 0, 0.2, 1);
+    height: var(--cw-control-height);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--cw-ink-950);
+    color: var(--cw-parchment);
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Text link variant */
+  .btn-text {
+    @apply text-base font-medium underline cursor-pointer;
+    color: var(--cw-ink-950);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    transition: opacity 240ms ease;
+  }
+
+  .btn-text:hover {
+    opacity: 0.7;
+  }
+}
+
+/* Loading/empty/error states */
+@layer components {
+  .loading-skeleton {
+    @apply bg-slate-200 animate-pulse rounded;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 text-center;
+  }
+
+  .empty-state-icon {
+    @apply mb-4 text-4xl text-slate-300;
+  }
+
+  .empty-state-title {
+    @apply text-lg font-medium text-slate-600 mb-2;
+  }
+
+  .empty-state-description {
+    @apply text-sm text-slate-500;
+  }
+
+  .error-message {
+    @apply flex gap-3 p-4 rounded bg-red-50 border border-red-200;
+  }
+
+  .error-message-icon {
+    @apply flex-shrink-0 text-red-600 font-bold;
+  }
+
+  .error-message-text {
+    @apply text-sm text-red-700;
+  }
+
+  .success-message {
+    @apply flex gap-3 p-4 rounded bg-green-50 border border-green-200;
+  }
+
+  .success-message-text {
+    @apply text-sm text-green-700;
+  }
+}
+
+/* Focus states */
+@layer components {
+  .focus-ring {
+    @apply outline-none ring-2 ring-offset-2;
+    ring-color: var(--cw-signal);
+  }
+}
+
+/* Transitions */
+@layer utilities {
+  .transition-cw {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-collapse {
+    animation: collapse var(--cw-motion-collapse) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-entangle {
+    animation: entangle var(--cw-motion-entangle) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-interfere {
+    animation: interfere var(--cw-motion-interfere) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
