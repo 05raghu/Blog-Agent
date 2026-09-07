@@ -1,7 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -16,7 +15,7 @@ interface Topic {
   createdAt: string;
 }
 
-export default function TopicsPage() {
+function TopicsContent() {
   const searchParams = useSearchParams();
   const strategyId = searchParams?.get('strategyId');
 
@@ -174,5 +173,22 @@ export default function TopicsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TopicsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-parchment">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center py-12">
+            <div className="animate-spin mb-4 text-4xl">⚙</div>
+            <p className="text-lg font-medium">Loading topics...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <TopicsContent />
+    </Suspense>
   );
 }
