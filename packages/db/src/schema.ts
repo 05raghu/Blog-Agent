@@ -548,3 +548,9 @@ export const indexes = [
   index('idx_articles_created').on(articles.createdAt),
   index('idx_approvals_created').on(approvals.createdAt),
 ];
+
+// Type exports
+export type StrategyVersion = typeof strategyVersions.$inferSelect;
+export type InsertStrategyVersion = typeof strategyVersions.$inferInsert;
+export type TopicCandidate = typeof topicCandidates.$inferSelect;
+export type InsertTopicCandidate = typeof topicCandidates.$inferInsert;

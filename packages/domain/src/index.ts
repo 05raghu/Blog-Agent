@@ -2,6 +2,7 @@
 // Exports: article service, workflow state machine, scoring, approvals, voice
 
 export * from './article-service';
+export * from './scoring/topic-rubric';
 
 // Stubs below — to be filled in later
 // export * from './workflow/state-machine';

@@ -1,0 +1,88 @@
+// Mock topic candidates for demo/testing
+
+export const MOCK_TOPICS = [
+  {
+    title: 'How to Build a Scalable API Architecture',
+    summary: 'A comprehensive guide to designing APIs that grow with your platform. Covers REST principles, GraphQL trade-offs, and real-world optimization strategies.',
+    angle: 'Practical implementation guide',
+    format: 'guide',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Enterprise Data Integration: Best Practices for 2026',
+    summary: 'Learn how enterprise teams integrate data across silos using modern ETL patterns, CDC, and real-time streaming.',
+    angle: 'Best practices',
+    format: 'guide',
+    targetOffering: 'Data Integration',
+  },
+  {
+    title: 'Comparing API Gateways: Kong vs AWS API Gateway vs Custom Solutions',
+    summary: 'An objective comparison of leading API gateway solutions, helping engineering leaders choose the right platform.',
+    angle: 'Comparison',
+    format: 'blog',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Microservices vs Monoliths: When to Choose Each Architecture',
+    summary: 'A nuanced look at architectural trade-offs, with real case studies from mid-market SaaS companies.',
+    angle: 'Case studies',
+    format: 'blog',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Real-World Case Study: How Acme Corp Reduced Data Pipeline Costs by 60%',
+    summary: 'A detailed walkthrough of how a mid-market fintech team cut their data infrastructure costs.',
+    angle: 'Case study',
+    format: 'case_study',
+    targetOffering: 'Data Integration',
+  },
+  {
+    title: 'The Security Checklist Every API Team Should Follow',
+    summary: 'Essential security practices for building and maintaining APIs, from authentication to rate limiting.',
+    angle: 'Checklist',
+    format: 'guide',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Event-Driven Architecture: Building Resilient Systems at Scale',
+    summary: 'How to design systems that respond to real-time events, with examples from e-commerce and SaaS platforms.',
+    angle: 'Technical deep dive',
+    format: 'blog',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Kubernetes Cost Optimization: Reducing Your Cloud Spend',
+    summary: 'Practical strategies for optimizing Kubernetes deployments and reducing cloud infrastructure costs.',
+    angle: 'Cost optimization',
+    format: 'guide',
+    targetOffering: undefined,
+  },
+  {
+    title: 'GraphQL vs REST: Making the Right Choice for Your API',
+    summary: 'A balanced comparison of GraphQL and REST, with guidance on choosing the right approach for your use case.',
+    angle: 'Comparison',
+    format: 'blog',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Zero-Trust Security for Cloud-Native Applications',
+    summary: 'How to implement zero-trust principles in containerized, cloud-native environments.',
+    angle: 'Security best practices',
+    format: 'guide',
+    targetOffering: undefined,
+  },
+  {
+    title: 'Building AI-Powered Features: A Practical Guide for Platform Teams',
+    summary: 'Real examples of how platform teams are adding AI features without disrupting core systems.',
+    angle: 'How-to guide',
+    format: 'guide',
+    targetOffering: 'API Platform',
+  },
+  {
+    title: 'Database Performance Tuning for High-Throughput Applications',
+    summary: 'Practical optimization techniques for databases handling millions of events per second.',
+    angle: 'Performance tuning',
+    format: 'blog',
+    targetOffering: 'Data Integration',
+  },
+];
