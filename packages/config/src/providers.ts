@@ -13,20 +13,22 @@ export async function getTextModelProvider(): Promise<TextModelProvider> {
 
   const env = getEnv();
 
-  if (env.TEXT_MODEL_MODE === 'live') {
-    if (!env.ANTHROPIC_API_KEY) {
-      throw new Error(
-        'TEXT_MODEL_MODE=live but ANTHROPIC_API_KEY is not set. Either provide the API key or switch to mock mode.'
-      );
-    }
+  // Auto-detect: use live API if key is present, otherwise use mock
+  if (env.OPENAI_API_KEY) {
+    console.log('[TextModel] Using live OpenAI GPT API');
+    const { OpenAITextModel } = await import('@blog-agent/integrations');
+    cachedTextModelProvider = new OpenAITextModel(env.OPENAI_API_KEY);
+  } else if (env.ANTHROPIC_API_KEY) {
     console.log('[TextModel] Using live Anthropic Claude API');
-    // Dynamic import to avoid build-time issues
-    const { AnthropicTextModel } = await import('@blog-agent/integrations/text-model');
+    const { AnthropicTextModel } = await import('@blog-agent/integrations');
     cachedTextModelProvider = new AnthropicTextModel(env.ANTHROPIC_API_KEY);
+  } else if (env.TEXT_MODEL_MODE === 'live') {
+    throw new Error(
+      'TEXT_MODEL_MODE=live but neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is set. Either provide an API key or remove the TEXT_MODEL_MODE setting.'
+    );
   } else {
     console.log('[TextModel] Using mock implementation (demo mode)');
-    // Dynamic import to avoid build-time issues
-    const { MockTextModel } = await import('@blog-agent/integrations/text-model');
+    const { MockTextModel } = await import('@blog-agent/integrations');
     cachedTextModelProvider = new MockTextModel();
   }
 

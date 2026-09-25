@@ -1,9 +1,7 @@
 // API route: GET/POST /api/articles — Manage articles in content calendar
 
 import { NextRequest, NextResponse } from 'next/server';
-
-// Temporary in-memory store (replace with DB later)
-const articleStore = new Map<string, any>();
+import { articleStore } from './store';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,19 +29,30 @@ export async function POST(request: NextRequest) {
 
     // Create article
     const articleId = `article_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+    // No auto-generated outline - user generates it from the brief
+    const defaultOutline = outline || '';
+
+    // Calculate word count from brief only
+    const contentLength = (brief || '').length;
+    const estimatedWordCount = Math.ceil(contentLength / 5); // Rough estimate: ~5 chars per word
+
     const article = {
       id: articleId,
       contentId: `content_${Date.now()}`, // Permanent identifier for tracking
       topicId,
       strategyId,
       title: title || 'Untitled Article',
-      brief: brief || '',
-      outline: outline || '',
+      brief: brief || 'Brief to be determined',
+      outline: defaultOutline,
+      content: '', // Empty content - user fills during editing
+      angle: '', // Will be set during brief editing
+      targetAudience: '', // Will be set during brief editing
       status: 'NOT_STARTED',
       assignedSME: assignedSME || null,
       owner: 'system', // TODO: use actual user from auth
       plannedPublishDate: null,
-      wordCount: 0,
+      wordCount: estimatedWordCount,
       createdAt: new Date(),
       updatedAt: new Date(),
       pausedReason: null,
@@ -51,6 +60,7 @@ export async function POST(request: NextRequest) {
     };
 
     articleStore.set(articleId, article);
+    console.log(`[API] Created article ${articleId}. Store now has ${articleStore.size} articles.`);
 
     return NextResponse.json({
       id: article.id,
@@ -88,13 +98,16 @@ export async function GET(request: NextRequest) {
         title: article.title,
         brief: article.brief,
         outline: article.outline,
+        content: (article as any).content || '',
         status: article.status,
         topicId: article.topicId,
         strategyId: article.strategyId,
         assignedSME: article.assignedSME,
         owner: article.owner,
         plannedPublishDate: article.plannedPublishDate,
+        publishDate: (article as any).publishDate,
         wordCount: article.wordCount,
+        linkedSources: (article as any).linkedSources || [],
         pausedReason: article.pausedReason,
         blockedReason: article.blockedReason,
         createdAt: article.createdAt,
@@ -116,9 +129,11 @@ export async function GET(request: NextRequest) {
         title: a.title,
         status: a.status,
         topicId: a.topicId,
+        strategyId: a.strategyId,
         assignedSME: a.assignedSME,
         plannedPublishDate: a.plannedPublishDate,
         wordCount: a.wordCount,
+        linkedSources: (a as any).linkedSources || [],
         createdAt: a.createdAt,
         updatedAt: a.updatedAt,
       }));

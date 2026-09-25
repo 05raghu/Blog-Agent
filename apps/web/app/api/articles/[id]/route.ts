@@ -1,72 +1,19 @@
-// API route: PATCH /api/articles/[id] — Update article status and metadata
+// API route: GET/PUT /api/articles/[id] — Get or update a specific article
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validateTransition, type ArticleStage } from '@blog-agent/domain';
+import { articleStore } from '../store';
 
-// Reference to the same store (in production, this would be DB)
-const articleStore = new Map<string, any>();
-
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params;
-    const body = await request.json();
-    const { status, plannedPublishDate, assignedSME, pausedReason, blockedReason } = body;
-
-    const article = articleStore.get(id);
-    if (!article) {
-      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
-    }
-
-    // Validate status transition if status is being updated
-    if (status && status !== article.status) {
-      const validation = validateTransition(article.status as ArticleStage, status as ArticleStage);
-      if (!validation.valid) {
-        return NextResponse.json(
-          { error: validation.error },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Update article
-    if (status) article.status = status;
-    if (plannedPublishDate !== undefined) article.plannedPublishDate = plannedPublishDate;
-    if (assignedSME !== undefined) article.assignedSME = assignedSME;
-    if (pausedReason !== undefined) article.pausedReason = pausedReason;
-    if (blockedReason !== undefined) article.blockedReason = blockedReason;
-    article.updatedAt = new Date();
-
-    articleStore.set(id, article);
-
-    // Log audit event (TODO: save to audit_events table)
-    console.log(`[API] Article ${id} transitioned to ${status}`);
-
-    return NextResponse.json({
-      id: article.id,
-      contentId: article.contentId,
-      title: article.title,
-      status: article.status,
-      plannedPublishDate: article.plannedPublishDate,
-      assignedSME: article.assignedSME,
-      updatedAt: article.updatedAt,
-    });
-  } catch (error) {
-    console.error('[API] Article update error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update article', message: (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const { id } = params;
+    const id = params.id;
     const article = articleStore.get(id);
 
     if (!article) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
+
+    const seoData = (article as any).seoAnalysis;
+    const seoScore = (article as any).seoScore;
 
     return NextResponse.json({
       id: article.id,
@@ -74,12 +21,18 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       title: article.title,
       brief: article.brief,
       outline: article.outline,
+      content: article.content || '',
       status: article.status,
       topicId: article.topicId,
       strategyId: article.strategyId,
+      angle: article.angle,
+      targetAudience: article.targetAudience,
       assignedSME: article.assignedSME,
       owner: article.owner,
       plannedPublishDate: article.plannedPublishDate,
+      linkedSources: (article as any).linkedSources || [],
+      seoScore: seoScore || null,
+      seoAnalysis: seoData || null,
       wordCount: article.wordCount,
       pausedReason: article.pausedReason,
       blockedReason: article.blockedReason,
@@ -89,6 +42,67 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to retrieve article', message: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = params.id;
+    const body = await request.json();
+
+    const article = articleStore.get(id);
+    if (!article) {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
+
+    // Update fields
+    const updated = {
+      ...article,
+      ...body,
+      updatedAt: new Date(),
+    };
+
+    // Recalculate word count if content changed
+    if (body.content) {
+      const words = body.content.split(/\s+/).filter((w: string) => w.length > 0);
+      updated.wordCount = words.length;
+    }
+
+    articleStore.set(id, updated);
+
+    const seoDataUpdated = (updated as any).seoAnalysis;
+    const seoScoreUpdated = (updated as any).seoScore;
+
+    return NextResponse.json({
+      id: updated.id,
+      contentId: updated.contentId,
+      title: updated.title,
+      brief: updated.brief,
+      outline: updated.outline,
+      content: updated.content || '',
+      status: updated.status,
+      topicId: updated.topicId,
+      strategyId: updated.strategyId,
+      angle: updated.angle,
+      targetAudience: updated.targetAudience,
+      assignedSME: updated.assignedSME,
+      owner: updated.owner,
+      plannedPublishDate: updated.plannedPublishDate,
+      linkedSources: (updated as any).linkedSources || [],
+      seoScore: seoScoreUpdated || null,
+      seoAnalysis: seoDataUpdated || null,
+      wordCount: updated.wordCount,
+      pausedReason: updated.pausedReason,
+      blockedReason: updated.blockedReason,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    });
+  } catch (error) {
+    console.error('[API] Article update error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update article', message: (error as Error).message },
       { status: 500 }
     );
   }

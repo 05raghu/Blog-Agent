@@ -150,53 +150,48 @@ export const documentChunks = pgTable('document_chunks', {
 // ============================================================================
 
 export const topicCandidates = pgTable('topic_candidates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  strategyVersionId: uuid('strategy_version_id')
-    .notNull()
-    .references(() => strategyVersions.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey(), // topic_${timestamp}_${random}
+  workspaceId: text('workspace_id').notNull(), // default-workspace for now
+  strategyId: text('strategy_id').notNull(), // strategy_${timestamp}_${random}
   title: text('title').notNull(),
-  description: text('description'),
+  summary: text('summary'),
   angle: text('angle'),
-  format: varchar('format', { length: 32 }), // blog, guide, case_study, whitepaper
-  audience: jsonb('audience').notNull().default([]),
-  targetVertical: uuid('target_vertical')
-    .references(() => contentVerticals.id, { onDelete: 'set null' }),
+  format: varchar('format', { length: 32 }).notNull().default('blog'), // blog, guide, case_study, whitepaper
+  geography: text('geography'),
+  audience: text('audience'),
   targetOffering: text('target_offering'),
-  targetGeography: text('target_geography'),
-  evidence: jsonb('evidence').notNull().default([]),
-  cannibalizationRisk: text('cannibalization_risk'),
-  recommendedSME: uuid('recommended_sme').references(() => smeProfiles.id, { onDelete: 'set null' }),
-  scores: jsonb('scores').notNull().default({}), // { "relevance": 25, "audience": 15, ... }
-  totalScore: decimal('total_score', { precision: 5, scale: 2 }).default('0'),
-  scoreConfidence: decimal('score_confidence', { precision: 3, scale: 2 }).default('0.5'),
-  status: varchar('status', { length: 32 }).default('candidate'), // candidate, shortlisted, approved, rejected, active
-  rejectionReason: text('rejection_reason'),
-  snoozedUntil: timestamp('snoozed_until'),
+
+  // Scoring results (all required for display)
+  score: integer('score').notNull().default(0), // 0-100 weighted score
+  confidence: integer('confidence').notNull().default(0), // 0-100 confidence
+  breakdown: jsonb('breakdown').notNull().default({
+    strategicRelevance: { score: 50, evidence: '' },
+    audienceIcpUsefulness: { score: 50, evidence: '' },
+    availableEvidenceAndDemand: { score: 50, evidence: '' },
+    differentiatedAngle: { score: 50, evidence: '' },
+    smeFit: { score: 50, evidence: '' },
+    searchContentGap: { score: 50, evidence: '' },
+    conversionDistributionPotential: { score: 50, evidence: '' },
+  }),
+  cannibalizationRisk: jsonb('cannibalization_risk').notNull().default({ exists: false }),
+  recommendedSmes: jsonb('recommended_smes').notNull().default([]),
+  missingInputs: jsonb('missing_inputs').notNull().default([]),
+
+  // Metadata
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const articles = pgTable('articles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull(), // default-workspace for now
   contentId: text('content_id').notNull(), // Permanent identifier
-  topicCandidateId: uuid('topic_candidate_id')
-    .notNull()
-    .references(() => topicCandidates.id, { onDelete: 'cascade' }),
-  strategyVersionId: uuid('strategy_version_id')
-    .notNull()
-    .references(() => strategyVersions.id, { onDelete: 'cascade' }),
-  verticalId: uuid('vertical_id')
-    .notNull()
-    .references(() => contentVerticals.id),
-  contentClass: varchar('content_class', { length: 32 }).notNull(), // expert_pov, search_led, commercial
-  assignedSME: uuid('assigned_sme').references(() => smeProfiles.id, { onDelete: 'set null' }),
-  owner: text('owner').notNull(), // Supabase user_id (marketer)
+  topicId: text('topic_id').notNull(), // Topic ID from topicCandidates
+  strategyId: text('strategy_id').notNull(), // Strategy ID
+  topicTitle: text('topic_title'), // Cached topic title for quick access
+  contentClass: varchar('content_class', { length: 32 }).default('expert_pov'), // expert_pov, search_led, commercial
+  assignedSME: text('assigned_sme'), // SME user ID
+  owner: text('owner').notNull(), // Marketer user ID
   status: varchar('status', { length: 32 }).default('not_started'), // see stage state machine
   plannedPublishDate: timestamp('planned_publish_date'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -233,6 +228,23 @@ export const urlAliases = pgTable('url_aliases', {
 // ============================================================================
 // SME BRIEFING
 // ============================================================================
+
+export const briefingSessions = pgTable('briefing_sessions', {
+  id: text('id').primaryKey(), // session_${timestamp}_${random}
+  workspaceId: text('workspace_id').notNull(),
+  strategyId: text('strategy_id').notNull(),
+  topicId: text('topic_id').notNull(),
+  topicTitle: text('topic_title').notNull(),
+  smeId: text('sme_id').notNull(),
+  smeName: text('sme_name').notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('in_progress'), // in_progress, completed
+  questions: jsonb('questions').notNull().default([]), // Array of { id, text, order }
+  responses: jsonb('responses').notNull().default({}), // { questionId: answer }
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const interviewSessions = pgTable('interview_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -534,13 +546,12 @@ export const indexes = [
   index('idx_audit_workspace').on(auditEvents.workspaceId),
 
   // Foreign key lookups
-  index('idx_articles_topic').on(articles.topicCandidateId),
+  index('idx_articles_topic').on(articles.topicId),
   index('idx_approvals_article').on(approvals.articleId),
   index('idx_artifacts_article').on(artifactVersions.articleId),
   index('idx_interview_sme').on(interviewSessions.smeId),
 
   // Search
-  index('idx_topic_candidates_status').on(topicCandidates.status),
   index('idx_articles_status').on(articles.status),
   index('idx_approval_status').on(approvals.status),
 

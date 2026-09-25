@@ -44,6 +44,18 @@ export default function StrategyPage() {
 
       const data = await response.json();
       setStrategyId(data.id);
+
+      // Store strategy data in localStorage for topics page to use
+      localStorage.setItem(`strategy_${data.id}`, JSON.stringify({
+        id: data.id,
+        title: data.title,
+        offerings: data.offerings,
+        targetIcps: data.targetIcps,
+        geographies: data.geographies,
+        competitors: data.competitors,
+        contentMix: data.contentMix,
+      }));
+
       setStep('success');
     } catch (err) {
       setError((err as Error).message);

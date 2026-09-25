@@ -2,6 +2,7 @@
 // Exports all schema tables and repository methods
 
 export * from './schema';
+export * from './client';
 // Repository layer exports (to be filled in next session):
 // export * from './repositories/workspace-repository';
 // export * from './repositories/article-repository';

@@ -7,6 +7,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.16.0",
+    "cheerio": "^1.2.0",
+    "jsdom": "^23.2.0",
+    "puppeteer": "^21.11.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

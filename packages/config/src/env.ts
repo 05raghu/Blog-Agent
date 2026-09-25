@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
+  // Supabase (optional for build-time)
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   DATABASE_URL: z.string().url().optional(),
 
@@ -18,6 +18,7 @@ const envSchema = z.object({
 
   // Live credentials (optional, only if mode is live)
   ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
   IMAGE_MODEL_API_KEY: z.string().optional(),
   IMAGE_MODEL_ENDPOINT: z.string().url().optional(),
   SEARCH_CRAWL_API_KEY: z.string().optional(),
@@ -55,6 +56,7 @@ export function getEnv(): EnvConfig {
     FORM_WEBHOOK_MODE: process.env.FORM_WEBHOOK_MODE,
 
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     IMAGE_MODEL_API_KEY: process.env.IMAGE_MODEL_API_KEY,
     IMAGE_MODEL_ENDPOINT: process.env.IMAGE_MODEL_ENDPOINT,
     SEARCH_CRAWL_API_KEY: process.env.SEARCH_CRAWL_API_KEY,

@@ -1,7 +1,7 @@
 // Live OpenAI TextModel implementation — uses GPT-4 API for generation
 
 import OpenAI from 'openai';
-import { TextModelProvider, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
 
 export class OpenAITextModel implements TextModelProvider {
   private client: OpenAI;
@@ -9,6 +9,77 @@ export class OpenAITextModel implements TextModelProvider {
 
   constructor(apiKey: string) {
     this.client = new OpenAI({ apiKey });
+  }
+
+  async generateBrief(params: BriefParams): Promise<string> {
+    const systemPrompt = `You are an expert content strategist. Generate a concise, compelling brief (2-3 sentences) for an article.`;
+
+    const userPrompt = `Generate a brief for an article with this title:
+
+Title: "${params.title}"
+${params.angle ? `Angle: ${params.angle}` : ''}
+${params.targetOffering ? `Target Offering: ${params.targetOffering}` : ''}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+The brief should:
+- Capture the main value proposition
+- Be clear and actionable
+- Hook the reader's interest
+- Be suitable for B2B/SaaS audience
+
+Write just the brief, no additional text:`;
+
+    const message = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 300,
+    });
+
+    const content = message.choices[0].message.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    return content;
+  }
+
+  async generateOutline(params: OutlineParams): Promise<string> {
+    const systemPrompt = `You are an expert content strategist. Generate a detailed outline for an article.`;
+
+    const userPrompt = `Generate an outline for an article based on the brief provided.
+
+Article Title: ${params.title}
+Brief: ${params.brief}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+Create a comprehensive outline with:
+- Clear section headings (use ## markdown format)
+- 4-6 main sections
+- 2-3 bullet points under each section for key topics to cover
+- Practical examples or case studies to include
+
+Format the response as a markdown outline that can be used to write the article.`;
+
+    const message = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    const content = message.choices[0].message.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    return content;
   }
 
   async generateDraft(params: DraftParams): Promise<string> {

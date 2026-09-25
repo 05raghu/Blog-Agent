@@ -1,8 +1,48 @@
 // Mock TextModel implementation — deterministic responses for testing/demo without API keys
 
-import { TextModelProvider, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
 
 export class MockTextModel implements TextModelProvider {
+  async generateBrief(params: BriefParams): Promise<string> {
+    const titles = params.title.split(' ');
+    const keyword = titles[0];
+
+    return `This article explores key insights and best practices around ${keyword}. We'll examine current market trends, real-world implementations, and actionable strategies for success. Perfect for decision-makers looking to stay competitive.`;
+  }
+
+  async generateOutline(params: OutlineParams): Promise<string> {
+    const auditence = params.targetAudience ? `for ${params.targetAudience}` : '';
+    return `## Introduction
+- Overview of ${params.title} ${auditence}
+- Why this matters now
+- What readers will learn
+
+## Market Context & Trends
+- Current landscape and statistics
+- Key drivers and catalysts
+- Competitive environment
+
+## Core Concepts & Best Practices
+- Fundamental approaches
+- Industry-leading strategies
+- Real-world implementations
+
+## Challenges & Solutions
+- Common obstacles teams face
+- Proven mitigation approaches
+- Lessons from the field
+
+## Implementation Roadmap
+- Getting started checklist
+- Step-by-step process
+- Tools and resources
+
+## Conclusion & Next Steps
+- Key takeaways
+- Recommended actions
+- Resources for further learning`;
+  }
+
   async generateDraft(params: DraftParams): Promise<string> {
     // Simulate draft generation with realistic structure
     const title = params.brief.split('\n')[0] || 'Article Title';

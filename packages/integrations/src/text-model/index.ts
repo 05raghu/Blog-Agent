@@ -1,15 +1,32 @@
-// Text model provider interface — Anthropic Claude + mock
+// Text model provider interface — Anthropic Claude + OpenAI + mock
 
 export interface TextModelProvider {
+  generateBrief(params: BriefParams): Promise<string>;
+  generateOutline(params: OutlineParams): Promise<string>;
   generateDraft(params: DraftParams): Promise<string>;
   generateCritique(params: CritiqueParams): Promise<Critique>;
   generateRevision(params: RevisionParams): Promise<string>;
 }
 
+export interface BriefParams {
+  title: string;
+  angle?: string;
+  targetOffering?: string;
+  targetAudience?: string;
+}
+
+export interface OutlineParams {
+  title: string;
+  brief: string;
+  targetAudience?: string;
+}
+
 export interface DraftParams {
+  title: string;
   brief: string;
   outline: string;
   voiceProfile?: string;
+  targetAudience?: string;
   targetLength?: number;
 }
 

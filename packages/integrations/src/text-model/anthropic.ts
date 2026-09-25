@@ -1,7 +1,7 @@
 // Live Anthropic TextModel implementation — uses Claude API for generation
 
 import Anthropic from '@anthropic-ai/sdk';
-import { TextModelProvider, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
 
 export class AnthropicTextModel implements TextModelProvider {
   private client: Anthropic;
@@ -9,6 +9,71 @@ export class AnthropicTextModel implements TextModelProvider {
 
   constructor(apiKey: string) {
     this.client = new Anthropic({ apiKey });
+  }
+
+  async generateBrief(params: BriefParams): Promise<string> {
+    const systemPrompt = `You are an expert content strategist. Generate a concise, compelling brief (2-3 sentences) for an article.`;
+
+    const userPrompt = `Generate a brief for an article with this title:
+
+Title: "${params.title}"
+${params.angle ? `Angle: ${params.angle}` : ''}
+${params.targetOffering ? `Target Offering: ${params.targetOffering}` : ''}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+The brief should:
+- Capture the main value proposition
+- Be clear and actionable
+- Hook the reader's interest
+- Be suitable for B2B/SaaS audience
+
+Write just the brief, no additional text:`;
+
+    const message = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 300,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude');
+    }
+
+    return content.text;
+  }
+
+  async generateOutline(params: OutlineParams): Promise<string> {
+    const systemPrompt = `You are an expert content strategist. Generate a detailed outline for an article.`;
+
+    const userPrompt = `Generate an outline for an article based on the brief provided.
+
+Article Title: ${params.title}
+Brief: ${params.brief}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+Create a comprehensive outline with:
+- Clear section headings (use ## markdown format)
+- 4-6 main sections
+- 2-3 bullet points under each section for key topics to cover
+- Practical examples or case studies to include
+
+Format the response as a markdown outline that can be used to write the article.`;
+
+    const message = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude');
+    }
+
+    return content.text;
   }
 
   async generateDraft(params: DraftParams): Promise<string> {
