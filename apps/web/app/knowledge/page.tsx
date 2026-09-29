@@ -1594,6 +1594,69 @@ function KnowledgeContent() {
                   />
                 </div>
 
+                {/* Terminology Section */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Terminology (Optional)</label>
+                  <p className="text-xs text-slate-600 mb-3">Define key terms and their meanings to ensure consistency (e.g., "ETL" → "Extract, Transform, Load")</p>
+
+                  {/* Existing Terminology */}
+                  <div className="space-y-2 mb-3 bg-slate-50 p-3 rounded border border-slate-200">
+                    {Object.keys(terminology).length > 0 ? (
+                      Object.entries(terminology).map(([term, explanation]) => (
+                        <div key={term} className="flex justify-between items-start gap-3 p-2 bg-white rounded border border-slate-100">
+                          <div className="flex-1">
+                            <span className="font-semibold text-slate-900">{term}</span>
+                            <span className="text-slate-600 text-xs"> → {explanation}</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const updated = { ...terminology };
+                              delete updated[term];
+                              setTerminology(updated);
+                            }}
+                            className="text-red-600 hover:text-red-900 font-bold flex-shrink-0 text-lg leading-none"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-400 italic text-center py-3">No terminology defined yet</p>
+                    )}
+                  </div>
+
+                  {/* Add New Terminology */}
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newTerm}
+                      onChange={(e) => setNewTerm(e.target.value)}
+                      placeholder="Term (e.g., ETL, API, workflow)"
+                      className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={newTermExplanation}
+                      onChange={(e) => setNewTermExplanation(e.target.value)}
+                      placeholder="Explanation (e.g., Extract, Transform, and Load data processes)"
+                      className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        if (newTerm.trim() && newTermExplanation.trim()) {
+                          setTerminology({ ...terminology, [newTerm]: newTermExplanation });
+                          setNewTerm('');
+                          setNewTermExplanation('');
+                        }
+                      }}
+                      disabled={!newTerm.trim() || !newTermExplanation.trim()}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm rounded font-medium transition"
+                    >
+                      + Add Term
+                    </button>
+                  </div>
+                </div>
+
                 {/* Exemplars Section */}
                 <div className="space-y-6">
                   {/* Strong Exemplars Column */}
@@ -1769,25 +1832,6 @@ function KnowledgeContent() {
                     </div>
                   </div>
 
-                  {/* Terminology */}
-                  <div>
-                    <label className="block text-xs font-medium mb-2">Terminology</label>
-                    <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
-                      {Object.entries(terminology).map(([term, explanation], i) => (
-                        <div key={i} className="flex justify-between items-start gap-2 p-1 bg-slate-50 rounded text-xs">
-                          <div className="flex-1">
-                            <strong>{term}</strong>: {explanation}
-                          </div>
-                          <button onClick={() => { const updated = { ...terminology }; delete updated[term]; setTerminology(updated); }} className="text-red-600 hover:text-red-900 flex-shrink-0">✕</button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-1">
-                      <input type="text" value={newTerm} onChange={(e) => setNewTerm(e.target.value)} placeholder="Term" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                      <input type="text" value={newTermExplanation} onChange={(e) => setNewTermExplanation(e.target.value)} placeholder="Explanation" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                      <button onClick={() => { if (newTerm.trim() && newTermExplanation.trim()) { setTerminology({ ...terminology, [newTerm]: newTermExplanation }); setNewTerm(''); setNewTermExplanation(''); } }} className="w-full px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white text-xs rounded font-medium">Add Term</button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Approval Status */}

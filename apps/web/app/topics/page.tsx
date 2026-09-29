@@ -49,6 +49,9 @@ function TopicsContent() {
   // Topic creation form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creatingTopic, setCreatingTopic] = useState(false);
+  const [createMode, setCreateMode] = useState<'manual' | 'bulk'>('manual');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const [formData, setFormData] = useState({
     title: '',
     summary: '',
@@ -276,6 +279,122 @@ function TopicsContent() {
       setShowCreateForm(false);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setCreatingTopic(false);
+    }
+  };
+
+  // Parse CSV file
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) throw new Error('CSV must have header row and at least one data row');
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const obj: any = {};
+      headers.forEach((header, index) => {
+        obj[header] = values[index] || '';
+      });
+      return obj;
+    });
+  };
+
+  // Parse JSON file
+  const parseJSON = (text: string): any[] => {
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('JSON must be an array of topic objects');
+    return data;
+  };
+
+  // Handle bulk upload
+  const handleBulkUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || !strategyId || !strategyData) return;
+
+    try {
+      setCreatingTopic(true);
+      setError('');
+      setUploadProgress('Reading file...');
+
+      const fileText = await uploadFile.text();
+      let topicsData: any[] = [];
+
+      // Determine file type and parse
+      if (uploadFile.name.endsWith('.csv')) {
+        topicsData = parseCSV(fileText);
+      } else if (uploadFile.name.endsWith('.json')) {
+        topicsData = parseJSON(fileText);
+      } else {
+        throw new Error('File must be CSV or JSON format');
+      }
+
+      if (topicsData.length === 0) throw new Error('No topics found in file');
+
+      setUploadProgress(`Processing ${topicsData.length} topics...`);
+
+      // Create topics one by one
+      let createdCount = 0;
+      const newTopics: Topic[] = [];
+
+      for (let i = 0; i < topicsData.length; i++) {
+        const topicData = topicsData[i];
+        setUploadProgress(`Creating topic ${i + 1} of ${topicsData.length}...`);
+
+        const response = await fetch('/api/strategy/topics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            strategyId,
+            strategy: {
+              offerings: strategyData.offerings,
+              targetIcps: strategyData.targetIcps,
+              geographies: strategyData.geographies,
+              competitors: strategyData.competitors,
+              contentMix: strategyData.contentMix,
+            },
+            action: 'create',
+            topic: {
+              title: topicData.title || '',
+              summary: topicData.summary || undefined,
+              angle: topicData.angle || undefined,
+              targetOffering: topicData.targetOffering || undefined,
+              format: topicData.format || 'blog',
+              geography: topicData.geography || undefined,
+              audience: topicData.audience || undefined,
+            },
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          newTopics.push({
+            ...data.topic,
+            strategyId,
+            source: 'manual' as const,
+          });
+          createdCount++;
+        }
+      }
+
+      // Update topics list
+      setTopics((prev) => {
+        const updated = [
+          ...newTopics,
+          ...prev
+        ].sort((a, b) => b.score - a.score);
+        localStorage.setItem('topics', JSON.stringify(updated));
+        return updated;
+      });
+
+      setSuccess(`✓ Successfully created ${createdCount} of ${topicsData.length} topics`);
+      setUploadFile(null);
+      setCreateMode('manual');
+      setShowCreateForm(false);
+      setUploadProgress('');
+    } catch (err) {
+      setError((err as Error).message);
+      setUploadProgress('');
     } finally {
       setCreatingTopic(false);
     }
@@ -582,6 +701,35 @@ function TopicsContent() {
           </div>
 
           {showCreateForm && (
+            <div className="space-y-4">
+              {/* Mode Toggle */}
+              <div className="flex gap-2 border-b pb-3">
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('manual')}
+                  className={`px-4 py-2 rounded font-medium text-sm transition ${
+                    createMode === 'manual'
+                      ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ✏️ Manual Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('bulk')}
+                  className={`px-4 py-2 rounded font-medium text-sm transition ${
+                    createMode === 'bulk'
+                      ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  📤 Bulk Upload
+                </button>
+              </div>
+
+              {/* Manual Entry Mode */}
+              {createMode === 'manual' && (
             <form onSubmit={handleCreateTopic} className="space-y-4">
               {/* Title */}
               <div>
@@ -695,6 +843,79 @@ function TopicsContent() {
                 </button>
               </div>
             </form>
+              )}
+
+              {/* Bulk Upload Mode */}
+              {createMode === 'bulk' && (
+                <form onSubmit={handleBulkUpload} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">Upload File (CSV or JSON)</label>
+                    <p className="text-xs text-slate-600 mb-3">
+                      📋 CSV: Columns should be: title, summary, angle, targetOffering, format, geography, audience<br/>
+                      📋 JSON: Array of objects with the same fields
+                    </p>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition">
+                      <input
+                        type="file"
+                        accept=".csv,.json"
+                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                        id="topic-file"
+                      />
+                      <label htmlFor="topic-file" className="cursor-pointer block">
+                        {uploadFile ? (
+                          <div>
+                            <p className="text-sm font-medium text-blue-600">✓ {uploadFile.name}</p>
+                            <p className="text-xs text-slate-600 mt-1">Click to change file</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">📤 Click to select file or drag and drop</p>
+                            <p className="text-xs text-slate-600 mt-1">CSV or JSON format supported</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  {uploadProgress && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-sm text-blue-900">{uploadProgress}</p>
+                    </div>
+                  )}
+
+                  {/* Submit Buttons */}
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="submit"
+                      disabled={!uploadFile || creatingTopic}
+                      className="btn-primary flex items-center gap-2 flex-1 justify-center"
+                    >
+                      {creatingTopic ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          {uploadProgress || 'Uploading...'}
+                        </>
+                      ) : (
+                        '📤 Upload Topics'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Example Section */}
+                  <details className="pt-4 border-t">
+                    <summary className="cursor-pointer font-medium text-sm text-slate-700 hover:text-slate-900">
+                      📝 Example CSV Format
+                    </summary>
+                    <pre className="mt-3 p-3 bg-slate-50 rounded text-xs overflow-x-auto">
+{`title,summary,angle,targetOffering,format,geography,audience
+Kubernetes Guide,Container orchestration basics,Beginner,DevOps,guide,Global,DevOps Engineers
+API Security Best Practices,Secure your APIs,Advanced,Security,guide,North America,Security Teams`}
+                    </pre>
+                  </details>
+                </form>
+              )}
+            </div>
           )}
         </div>
 
