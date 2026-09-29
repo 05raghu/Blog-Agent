@@ -1,80 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+interface Strategy {
+  id: string;
+  title: string;
+  offerings: string[];
+  targetIcps: string[];
+  createdAt: string;
+}
+
 export default function StrategyPage() {
-  const [step, setStep] = useState<'input' | 'generating' | 'success'>('input');
-  const [error, setError] = useState('');
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [loadingStrategies, setLoadingStrategies] = useState(true);
 
-  const [title, setTitle] = useState('');
-  const [offerings, setOfferings] = useState('');
-  const [targetIcps, setTargetIcps] = useState('');
-  const [geographies, setGeographies] = useState('');
-  const [competitors, setCompetitors] = useState('');
-  const [contentMix, setContentMix] = useState('');
-  const [description, setDescription] = useState('');
+  // Load all strategies on mount
+  useEffect(() => {
+    fetchStrategies();
+  }, []);
 
-  const [strategyId, setStrategyId] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setStep('generating');
-
+  const fetchStrategies = async () => {
     try {
-      const response = await fetch('/api/strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title || 'My Strategy',
-          offerings: offerings.split(',').map((s) => s.trim()).filter(Boolean),
-          targetIcps: targetIcps.split(',').map((s) => s.trim()).filter(Boolean),
-          geographies: geographies.split(',').map((s) => s.trim()).filter(Boolean),
-          competitors: competitors.split(',').map((s) => s.trim()).filter(Boolean),
-          contentMix: parseContentMix(contentMix),
-          description,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create strategy');
+      setLoadingStrategies(true);
+      const response = await fetch('/api/strategy');
+      if (response.ok) {
+        const data = await response.json();
+        setStrategies(data.strategies || []);
       }
-
-      const data = await response.json();
-      setStrategyId(data.id);
-
-      // Store strategy data in localStorage for topics page to use
-      localStorage.setItem(`strategy_${data.id}`, JSON.stringify({
-        id: data.id,
-        title: data.title,
-        offerings: data.offerings,
-        targetIcps: data.targetIcps,
-        geographies: data.geographies,
-        competitors: data.competitors,
-        contentMix: data.contentMix,
-      }));
-
-      setStep('success');
     } catch (err) {
-      setError((err as Error).message);
-      setStep('input');
+      console.error('Failed to fetch strategies:', err);
+    } finally {
+      setLoadingStrategies(false);
     }
-  };
-
-  const parseContentMix = (str: string): Record<string, number> => {
-    const mix: Record<string, number> = {};
-    if (!str.trim()) return mix;
-
-    str.split(';').forEach((item) => {
-      const [key, value] = item.split(':').map((s) => s.trim());
-      if (key && value) {
-        mix[key] = parseInt(value, 10);
-      }
-    });
-
-    return mix;
   };
 
   return (
@@ -83,199 +41,61 @@ export default function StrategyPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-hero mb-4" style={{ fontSize: '46px' }}>
-            Editorial Strategy
+            Editorial Strategies
           </h1>
           <p className="lead text-slate-700">
-            Define your content strategy and generate high-scoring topic candidates
+            Manage your content strategies and generate high-scoring topic candidates
           </p>
         </div>
 
-        {/* Input Phase */}
-        {step === 'input' && (
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {error && (
-              <div className="error-message">
-                <span className="error-message-icon">⚠</span>
-                <span className="error-message-text">{error}</span>
+        {/* Strategy List */}
+        <div className="space-y-8">
+          <div className="bg-white rounded-lg border border-slate-200 p-8">
+            {loadingStrategies ? (
+              <div className="text-center py-8">
+                <div className="w-6 h-6 border-3 border-slate-200 border-t-slate-900 rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-slate-600">Loading strategies...</p>
+              </div>
+            ) : strategies.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-600 mb-4">No strategies yet. Create one to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {strategies.map((strategy) => (
+                  <div
+                    key={strategy.id}
+                    className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{strategy.offerings?.join(', ') || strategy.title}</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Target ICPs: {strategy.targetIcps?.join(', ') || 'None'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Created: {new Date(strategy.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/topics?strategyId=${strategy.id}`}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                        >
+                          View Topics
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Strategy Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., Codewave 2026 Editorial"
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Offerings * (comma-separated)
-              </label>
-              <textarea
-                value={offerings}
-                onChange={(e) => {
-                  setOfferings(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., API Platform, Data Integration, Analytics Engine"
-                rows={3}
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal font-body"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Target ICPs (comma-separated)
-              </label>
-              <textarea
-                value={targetIcps}
-                onChange={(e) => {
-                  setTargetIcps(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., Engineering leaders at mid-market SaaS, VP of Data"
-                rows={3}
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal font-body"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Geographies (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={geographies}
-                onChange={(e) => {
-                  setGeographies(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., US, EU, APAC"
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Competitors (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={competitors}
-                onChange={(e) => {
-                  setCompetitors(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., Zapier, Make, n8n"
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Content Mix (key:value; format)
-              </label>
-              <textarea
-                value={contentMix}
-                onChange={(e) => {
-                  setContentMix(e.target.value);
-                  setError('');
-                }}
-                placeholder="e.g., how-to:30; thought-leadership:40; case-study:30"
-                rows={2}
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal font-body text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value);
-                  setError('');
-                }}
-                placeholder="Optional: Describe your editorial philosophy..."
-                rows={3}
-                style={{ borderRadius: '10px' }}
-                className="w-full px-4 py-2 border border-ink-950 focus:ring-2 ring-signal font-body"
-              />
-            </div>
-
-            <div className="flex gap-4">
-              <button type="submit" className="btn-primary">
-                Save Strategy & Generate Topics
-              </button>
-              <Link href="/demo" className="btn-secondary">
-                Back to Demo
-              </Link>
-            </div>
-          </form>
-        )}
-
-        {/* Generating Phase */}
-        {step === 'generating' && (
-          <div className="text-center py-12">
-            <div className="animate-spin mb-4">⚙</div>
-            <p className="text-lg font-medium mb-2">Generating topic candidates...</p>
-            <p className="text-sm text-slate-600">
-              This may take a few seconds
-            </p>
           </div>
-        )}
 
-        {/* Success Phase */}
-        {step === 'success' && (
-          <div className="space-y-8">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-8">
-              <div className="text-center">
-                <div className="text-5xl mb-4">✨</div>
-                <h2 className="text-2xl font-bold text-green-800 mb-2">
-                  Strategy Created Successfully!
-                </h2>
-                <p className="text-green-700 mb-6">
-                  Your strategy ID: <code className="font-mono text-sm">{strategyId.substring(0, 20)}...</code>
-                </p>
-
-                <div className="flex gap-4 justify-center">
-                  <Link href={`/topics?strategyId=${strategyId}`} className="btn-primary">
-                    View Topic Candidates →
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setStep('input');
-                      setTitle('');
-                      setOfferings('');
-                      setTargetIcps('');
-                      setGeographies('');
-                      setCompetitors('');
-                      setContentMix('');
-                      setDescription('');
-                      setError('');
-                    }}
-                    className="btn-secondary"
-                  >
-                    Create Another Strategy
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          <Link href="/strategy/new" className="btn-primary">
+            + Create New Strategy
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -5,8 +5,10 @@ import { useState, useEffect } from 'react';
 interface SuggestedLink {
   id: string;
   title: string;
-  similarity: number;
+  similarity?: number; // Legacy: keyword-based
+  relevance?: number; // New: LLM-based (0-100)
   suggestedAnchor: string;
+  rationale?: string; // New: LLM-provided reason
 }
 
 interface CrosslinkManagerProps {
@@ -153,23 +155,28 @@ export function CrosslinkManager({
                 className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors"
               >
                 <div className="space-y-3">
-                  {/* Link Title & Similarity */}
+                  {/* Link Title & Relevance Score */}
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <p className="font-semibold text-slate-900">{link.title}</p>
                       <p className="text-xs text-slate-600 mt-1">
-                        {link.similarity}% match • Suggested anchor: "{link.suggestedAnchor}"
+                        Suggested anchor: "{link.suggestedAnchor}"
                       </p>
+                      {link.rationale && (
+                        <p className="text-xs text-slate-500 mt-2 italic">
+                          {link.rationale}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-600 rounded-full transition-all"
-                          style={{ width: `${link.similarity}%` }}
+                          style={{ width: `${(link.relevance || link.similarity || 0)}%` }}
                         />
                       </div>
                       <span className="text-xs font-semibold text-slate-700 min-w-8">
-                        {link.similarity}%
+                        {Math.round(link.relevance || link.similarity || 0)}%
                       </span>
                     </div>
                   </div>

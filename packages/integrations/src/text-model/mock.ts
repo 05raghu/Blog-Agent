@@ -1,6 +1,6 @@
 // Mock TextModel implementation — deterministic responses for testing/demo without API keys
 
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate } from './index';
 
 export class MockTextModel implements TextModelProvider {
   async generateBrief(params: BriefParams): Promise<string> {
@@ -215,5 +215,212 @@ Move forward next week:
     }
 
     return revision;
+  }
+
+  async analyzeSEO(params: SEOAnalysisParams): Promise<SEOAnalysisResult> {
+    // Extract primary keyword from title (simple heuristic)
+    const titleWords = params.title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const primaryKeyword = titleWords[0] || 'article';
+
+    // Count keyword occurrences
+    const contentLower = params.content.toLowerCase();
+    const keywordOccurrences = (contentLower.match(new RegExp(primaryKeyword, 'g')) || []).length;
+    const wordCount = params.content.split(/\s+/).length;
+    const keywordDensity = (keywordOccurrences / wordCount) * 100;
+
+    // Readability score (Flesch-Kincaid grade level)
+    const sentences = params.content.split(/[.!?]+/).filter(s => s.trim());
+    const words = params.content.split(/\s+/);
+    const syllables = words.reduce((sum, word) => sum + this.countSyllables(word), 0);
+
+    const readabilityScore = Math.max(0, Math.min(18,
+      206.835 - (1.015 * (words.length / Math.max(1, sentences.length))) -
+      (84.6 * (syllables / Math.max(1, words.length)))
+    ));
+
+    // Meta description
+    const firstSentence = params.content.split(/[.!?]/)[0]?.trim() || params.brief || params.title;
+    const metaDescription = firstSentence.substring(0, 160);
+
+    // Issues
+    const issues = [];
+    if (params.title.length < 30) {
+      issues.push({ type: 'warning' as const, message: 'Title is too short. Aim for 30-60 characters.' });
+    }
+    if (keywordDensity < 1) {
+      issues.push({ type: 'warning' as const, message: `Keyword "${primaryKeyword}" appears infrequently.` });
+    } else if (keywordDensity > 5) {
+      issues.push({ type: 'warning' as const, message: `Keyword "${primaryKeyword}" is overused.` });
+    }
+    if (wordCount < 600) {
+      issues.push({ type: 'warning' as const, message: `Article is ${wordCount} words. Aim for 600+.` });
+    }
+
+    // Suggestions
+    const suggestions = [];
+    if (params.title.length >= 30 && params.title.length <= 60) {
+      suggestions.push(`✓ Title length optimal (${params.title.length} chars)`);
+    }
+    if (keywordDensity >= 1 && keywordDensity <= 3) {
+      suggestions.push(`✓ Keyword density good (${keywordDensity.toFixed(2)}%)`);
+    }
+    if (wordCount >= 600) {
+      suggestions.push(`✓ Article length sufficient (${wordCount} words)`);
+    }
+
+    // Calculate score
+    let score = 50;
+    if (params.title.length >= 30 && params.title.length <= 60) score += 15;
+    if (keywordDensity >= 1 && keywordDensity <= 3) score += 15;
+    if (wordCount >= 600) score += 15;
+    if ((params.content.match(/^#+\s/gm) || []).length > 0) score += 10;
+    score = Math.min(100, score);
+
+    return {
+      score: Math.round(score),
+      keyword: primaryKeyword,
+      keywordDensity: parseFloat(keywordDensity.toFixed(2)),
+      readabilityScore: Math.round(readabilityScore / 2),
+      metaDescription,
+      issues,
+      suggestions: suggestions.length > 0 ? suggestions : ['Continue optimizing for better results'],
+    };
+  }
+
+  async suggestInternalLinks(params: LinkSuggestionParams): Promise<LinkSuggestion[]> {
+    // Deterministic keyword-based matching (current algorithm)
+    const stopwords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'from',
+      'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who',
+    ]);
+
+    const extractKeywords = (text: string): Set<string> => {
+      const cleaned = text
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+        .replace(/#+\s+/g, '')
+        .toLowerCase();
+
+      const words = cleaned
+        .split(/\s+/)
+        .filter(w => {
+          const clean = w.replace(/[^a-z0-9]/g, '');
+          return clean.length > 3 && !stopwords.has(clean);
+        })
+        .map(w => w.replace(/[^a-z0-9]/g, ''));
+
+      return new Set(words);
+    };
+
+    const calculateSimilarity = (kw1: Set<string>, kw2: Set<string>): number => {
+      if (kw1.size === 0 || kw2.size === 0) return 0;
+      const intersection = new Set([...kw1].filter(k => kw2.has(k)));
+      const union = new Set([...kw1, ...kw2]);
+      return (intersection.size / union.size) * 100;
+    };
+
+    const currentKeywords = extractKeywords(`${params.currentTitle} ${params.currentContent}`);
+
+    const suggestions: LinkSuggestion[] = params.candidates
+      .map(candidate => {
+        const candidateKeywords = extractKeywords(`${candidate.title} ${candidate.excerpt}`);
+        const relevance = calculateSimilarity(currentKeywords, candidateKeywords);
+
+        return {
+          id: candidate.id,
+          title: candidate.title,
+          relevance: Math.round(relevance * 100) / 100,
+          suggestedAnchor: `Learn more about ${candidate.title.toLowerCase()}`,
+          rationale: `Shares ${Math.round(relevance)}% keyword overlap with current article`,
+        };
+      })
+      .filter(s => s.relevance >= 15)
+      .sort((a, b) => b.relevance - a.relevance)
+      .slice(0, 4);
+
+    return suggestions;
+  }
+
+  private countSyllables(word: string): number {
+    const vowels = 'aeiouy';
+    let syllableCount = 0;
+    let previousWasVowel = false;
+
+    for (let i = 0; i < word.length; i++) {
+      const isVowel = vowels.includes(word[i].toLowerCase());
+      if (isVowel && !previousWasVowel) {
+        syllableCount++;
+      }
+      previousWasVowel = isVowel;
+    }
+
+    if (word.endsWith('e')) {
+      syllableCount--;
+    }
+
+    return Math.max(1, syllableCount);
+  }
+
+  async generateCTA(params: CTAParams): Promise<CTAResult> {
+    // Generate deterministic CTAs based on title
+    const titleWords = params.title.toLowerCase().split(' ');
+    const mainTopic = titleWords[0];
+
+    // Generic CTA templates for mock mode
+    const cta1 = {
+      text: `Get the free ${mainTopic} checklist`,
+      rationale: `Provides immediate value and matches the ${mainTopic} topic covered in your article`,
+    };
+
+    const cta2 = {
+      text: `Schedule a demo to see how we help`,
+      rationale: `Conversion-focused CTA for readers ready to evaluate solutions`,
+    };
+
+    return {
+      ctas: [cta1, cta2],
+    };
+  }
+
+  async generateTopicCandidates(params: TopicGenerationParams): Promise<GeneratedTopicCandidate[]> {
+    const { strategy, seed, count } = params;
+    const offerings = strategy.offerings?.length ? strategy.offerings : ['your product'];
+    const results: GeneratedTopicCandidate[] = [];
+
+    const anglePatterns = [
+      { angle: 'Practical implementation guide', format: 'guide' },
+      { angle: 'Comparison', format: 'blog' },
+      { angle: 'Case study', format: 'case_study' },
+      { angle: 'Best practices', format: 'guide' },
+      { angle: 'Checklist', format: 'guide' },
+      { angle: 'ROI / business case', format: 'whitepaper' },
+      { angle: 'Technical deep dive', format: 'blog' },
+      { angle: 'Trends & predictions', format: 'blog' },
+      { angle: 'Common mistakes', format: 'blog' },
+      { angle: "Buyer's guide", format: 'whitepaper' },
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const offering = offerings[i % offerings.length];
+      const pattern = anglePatterns[i % anglePatterns.length];
+      const geography = strategy.geographies?.length ? strategy.geographies[i % strategy.geographies.length] : undefined;
+      const audience = strategy.targetIcps?.length ? strategy.targetIcps[i % strategy.targetIcps.length] : undefined;
+
+      let title = `${pattern.angle} for ${offering}`;
+      if (seed) {
+        title = `${title}: Focus on ${seed}`;
+      }
+
+      results.push({
+        title,
+        summary: `A ${pattern.angle.toLowerCase()} exploring ${offering}${audience ? ` for ${audience}` : ''}.${seed ? ` Framed around: "${seed}".` : ''}`,
+        angle: pattern.angle,
+        targetOffering: strategy.offerings?.length ? offering : undefined,
+        format: pattern.format,
+        geography,
+        audience,
+      });
+    }
+
+    return results;
   }
 }

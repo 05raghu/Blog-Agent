@@ -6,6 +6,7 @@ interface ScoreBreakdown {
   links: { score: number; details: string[] };
   images: { score: number; details: string[] };
   claims: { score: number; details: string[] };
+  cta: { score: number; details: string[] };
 }
 
 interface PublishReadinessProps {
@@ -15,6 +16,7 @@ interface PublishReadinessProps {
   hasImages: boolean;
   claimsVerified: number;
   totalClaims: number;
+  hasCTA?: boolean;
 }
 
 export function PublishReadiness({
@@ -24,6 +26,7 @@ export function PublishReadiness({
   hasImages,
   claimsVerified,
   totalClaims,
+  hasCTA = false,
 }: PublishReadinessProps) {
   const calculateScores = (): ScoreBreakdown => {
     const scores: ScoreBreakdown = {
@@ -32,6 +35,7 @@ export function PublishReadiness({
       links: { score: 0, details: [] },
       images: { score: 0, details: [] },
       claims: { score: 0, details: [] },
+      cta: { score: 0, details: [] },
     };
 
     // SEO Scoring
@@ -148,12 +152,23 @@ export function PublishReadiness({
 
     scores.claims.score = claimsScore;
 
+    // CTA Scoring
+    let ctaScore = 0;
+    if (hasCTA) {
+      ctaScore = 100;
+      scores.cta.details.push('✓ Call-to-action selected');
+    } else {
+      scores.cta.details.push('⚠ No call-to-action selected');
+    }
+
+    scores.cta.score = ctaScore;
+
     return scores;
   };
 
   const scores = calculateScores();
   const overallScore = Math.round(
-    (scores.seo.score + scores.content.score + scores.links.score + scores.images.score + scores.claims.score) / 5
+    (scores.seo.score + scores.content.score + scores.links.score + scores.images.score + scores.claims.score + scores.cta.score) / 6
   );
 
   const getScoreColor = (score: number) => {
@@ -167,6 +182,7 @@ export function PublishReadiness({
     if (wordCount < 300) blockers.push('Content too short (min 300 words)');
     if (!title) blockers.push('Missing article title');
     if (!hasImages) blockers.push('Missing hero image');
+    if (!hasCTA) blockers.push('Missing call-to-action selection');
     if (totalClaims > 0 && claimsVerified < totalClaims) blockers.push('Unverified claims found');
     return blockers;
   };

@@ -14,6 +14,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const seoData = (article as any).seoAnalysis;
     const seoScore = (article as any).seoScore;
+    const selectedCTA = (article as any).selectedCTA;
+    const generatedCTAs = (article as any).generatedCTAs;
+    const selectedImage = (article as any).selectedImage;
 
     return NextResponse.json({
       id: article.id,
@@ -33,6 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       linkedSources: (article as any).linkedSources || [],
       seoScore: seoScore || null,
       seoAnalysis: seoData || null,
+      selectedCTA: selectedCTA || null,
+      generatedCTAs: generatedCTAs || null,
+      selectedImage: selectedImage || null,
       wordCount: article.wordCount,
       pausedReason: article.pausedReason,
       blockedReason: article.blockedReason,
@@ -74,6 +80,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const seoDataUpdated = (updated as any).seoAnalysis;
     const seoScoreUpdated = (updated as any).seoScore;
+    const selectedCTAUpdated = (updated as any).selectedCTA;
+    const generatedCTAsUpdated = (updated as any).generatedCTAs;
+    const selectedImageUpdated = (updated as any).selectedImage;
 
     return NextResponse.json({
       id: updated.id,
@@ -93,6 +102,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       linkedSources: (updated as any).linkedSources || [],
       seoScore: seoScoreUpdated || null,
       seoAnalysis: seoDataUpdated || null,
+      selectedCTA: selectedCTAUpdated || null,
+      generatedCTAs: generatedCTAsUpdated || null,
+      selectedImage: selectedImageUpdated || null,
       wordCount: updated.wordCount,
       pausedReason: updated.pausedReason,
       blockedReason: updated.blockedReason,
@@ -103,6 +115,31 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     console.error('[API] Article update error:', error);
     return NextResponse.json(
       { error: 'Failed to update article', message: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = params.id;
+    const article = articleStore.get(id);
+
+    if (!article) {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
+
+    // Delete the article from the store
+    articleStore.delete(id);
+
+    return NextResponse.json({
+      success: true,
+      message: `Article ${id} deleted successfully`,
+    });
+  } catch (error) {
+    console.error('[API] Article deletion error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete article', message: (error as Error).message },
       { status: 500 }
     );
   }

@@ -6,6 +6,10 @@ export interface TextModelProvider {
   generateDraft(params: DraftParams): Promise<string>;
   generateCritique(params: CritiqueParams): Promise<Critique>;
   generateRevision(params: RevisionParams): Promise<string>;
+  analyzeSEO(params: SEOAnalysisParams): Promise<SEOAnalysisResult>;
+  suggestInternalLinks(params: LinkSuggestionParams): Promise<LinkSuggestion[]>;
+  generateCTA(params: CTAParams): Promise<CTAResult>;
+  generateTopicCandidates(params: TopicGenerationParams): Promise<GeneratedTopicCandidate[]>;
 }
 
 export interface BriefParams {
@@ -51,6 +55,85 @@ export interface RevisionParams {
   current: string;
   feedback: string;
   previousFeedback?: string[];
+}
+
+export interface SEOAnalysisParams {
+  title: string;
+  content: string;
+  brief?: string;
+}
+
+export interface SEOIssue {
+  type: 'error' | 'warning' | 'info';
+  message: string;
+}
+
+export interface SEOAnalysisResult {
+  score: number;
+  keyword: string;
+  keywordDensity: number;
+  readabilityScore: number;
+  metaDescription: string;
+  issues: SEOIssue[];
+  suggestions: string[];
+}
+
+export interface LinkSuggestionCandidate {
+  id: string;
+  title: string;
+  excerpt: string; // ~300 chars of content
+}
+
+export interface LinkSuggestionParams {
+  currentTitle: string;
+  currentContent: string;
+  candidates: LinkSuggestionCandidate[];
+}
+
+export interface LinkSuggestion {
+  id: string;
+  title: string;
+  relevance: number; // 0-100
+  suggestedAnchor: string;
+  rationale: string;
+}
+
+export interface CTAParams {
+  title: string;
+  content: string;
+  brief?: string;
+  targetAudience?: string;
+}
+
+export interface CTA {
+  text: string;
+  rationale: string;
+}
+
+export interface CTAResult {
+  ctas: CTA[];
+}
+
+export interface TopicGenerationParams {
+  strategy: {
+    offerings: string[];
+    targetIcps: string[];
+    geographies: string[];
+    competitors: string[];
+    contentMix: Record<string, number>;
+  };
+  seed?: string;
+  count: number;
+}
+
+export interface GeneratedTopicCandidate {
+  title: string;
+  summary: string;
+  angle?: string;
+  targetOffering?: string;
+  format?: string;
+  geography?: string;
+  audience?: string;
 }
 
 // Re-exports for module resolution

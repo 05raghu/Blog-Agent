@@ -9,7 +9,20 @@ import { PublishReadiness } from '@/components/publish-readiness';
 import { StageWorkflow } from '@/components/stage-workflow';
 import { SEOAnalyzer } from '@/components/seo-analyzer';
 import { CrosslinkManager } from '@/components/crosslink-manager';
+import { CTAGenerator } from '@/components/cta-generator';
+import { ImageGallery } from '@/components/image-gallery';
 import { validateTransition, type ArticleStage, STAGE_COLORS, STAGE_LABELS } from '@blog-agent/domain';
+
+interface CTA {
+  text: string;
+  rationale: string;
+}
+
+interface GeneratedImage {
+  url: string;
+  prompt: string;
+  alt: string;
+}
 
 interface Article {
   id: string;
@@ -23,6 +36,10 @@ interface Article {
   strategyId: string;
   wordCount: number;
   linkedSources?: string[]; // Array of source IDs
+  selectedCTA?: CTA; // Selected CTA for the article
+  generatedCTAs?: CTA[]; // List of generated CTA suggestions
+  selectedImage?: GeneratedImage; // Selected hero image
+  generatedImages?: GeneratedImage[]; // List of generated images
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +65,7 @@ export default function ArticleEditorPage() {
   const [currentStage, setCurrentStage] = useState<ArticleStage>('NOT_STARTED');
   const [publishDate, setPublishDate] = useState('');
   const [editingPublishDate, setEditingPublishDate] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState('default-workspace');
 
   // Sources state
   const [sources, setSources] = useState<any[]>([]);
@@ -64,8 +82,18 @@ export default function ArticleEditorPage() {
   const [crosslinksLoading, setCrosslinksLoading] = useState(false);
   const [suggestedLinks, setSuggestedLinks] = useState<any[]>([]);
 
+  // CTA state
+  const [ctas, setCtas] = useState<any[]>([]);
+  const [ctaLoading, setCtaLoading] = useState(false);
+  const [selectedCTA, setSelectedCTA] = useState<CTA | null>(null);
+
+  // Image state
+  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
+
   // Tab state
-  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'images' | 'score' | 'workflow' | 'sources'>('brief');
+  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'sources'>('brief');
 
   // Initialize selected sources when article loads or when Sources tab is accessed
   useEffect(() => {
@@ -197,6 +225,131 @@ export default function ArticleEditorPage() {
     }
   };
 
+  const handleGenerateCTA = async () => {
+    try {
+      setCtaLoading(true);
+      const response = await fetch(`/api/articles/${id}/generate-cta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article?.title,
+          content,
+          brief,
+          targetAudience: audience,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate CTA');
+
+      const data = await response.json();
+      const generatedCtas = data.ctas || [];
+      setCtas(generatedCtas);
+
+      // Save generated CTAs to backend for persistence
+      const saveResponse = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generatedCTAs: generatedCtas,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        console.error('[DEBUG] Failed to save generated CTAs');
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCtaLoading(false);
+    }
+  };
+
+  const handleSelectCTA = async (cta: CTA | null) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedCTA: cta,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save CTA selection');
+
+      const data = await response.json();
+      setArticle(data);
+      setSelectedCTA(cta);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch (err) {
+      setError((err as Error).message);
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGenerateImages = async () => {
+    try {
+      setImagesLoading(true);
+      console.log('[Editor] Generating images...');
+      const response = await fetch(`/api/articles/${id}/generate-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article?.title,
+          brief,
+          outline,
+          content, // Pass content so API can extract image prompts
+          style: 'professional',
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate images');
+
+      const data = await response.json();
+      const generatedImages = data.images || [];
+      setImages(generatedImages);
+      console.log('[Editor] ✓ Generated', generatedImages.length, 'images');
+
+      // Note: We don't persist full image data to avoid payload size limits
+      // Images can be regenerated anytime by clicking "Regenerate"
+      // Only the selectedImage is persisted to the backend
+    } catch (err) {
+      setError((err as Error).message);
+      console.error('[ERROR] Image generation failed:', err);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
+  const handleSelectImage = async (image: GeneratedImage | null) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedImage: image,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save image selection');
+
+      const data = await response.json();
+      setArticle(data);
+      setSelectedImage(image);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch (err) {
+      setError((err as Error).message);
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleLinkSources = async () => {
     try {
       setSaving(true);
@@ -301,6 +454,20 @@ export default function ArticleEditorPage() {
     }
   }, [activeTab, content]);
 
+  // Auto-generate CTAs when tab is accessed (only if no CTAs exist and no CTA selected)
+  useEffect(() => {
+    if (activeTab === 'cta' && content && ctas.length === 0 && !selectedCTA && !ctaLoading) {
+      handleGenerateCTA();
+    }
+  }, [activeTab, content, selectedCTA]);
+
+  // Auto-generate images when tab is accessed (only if no images exist and no image selected)
+  useEffect(() => {
+    if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
+      handleGenerateImages();
+    }
+  }, [activeTab, article?.title, selectedImage]);
+
   useEffect(() => {
     if (id) fetchArticle();
   }, [id]);
@@ -329,6 +496,27 @@ export default function ArticleEditorPage() {
       } else {
         console.log('[DEBUG] No persisted SEO analysis found');
       }
+
+      // Load persisted CTA if available
+      if (data.selectedCTA) {
+        console.log('[DEBUG] Loading persisted CTA:', data.selectedCTA);
+        setSelectedCTA(data.selectedCTA);
+      }
+
+      // Load persisted generated CTAs if available
+      if (data.generatedCTAs && data.generatedCTAs.length > 0) {
+        console.log('[DEBUG] Loading persisted generated CTAs:', data.generatedCTAs);
+        setCtas(data.generatedCTAs);
+      }
+
+      // Load persisted selected image if available
+      if (data.selectedImage) {
+        console.log('[DEBUG] Loading persisted selected image:', data.selectedImage);
+        setSelectedImage(data.selectedImage);
+      }
+
+      // Note: generatedImages are NOT persisted (too large as base64)
+      // Users need to regenerate them if needed by clicking "Generate Images"
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -449,7 +637,7 @@ export default function ArticleEditorPage() {
     setError('');
 
     try {
-      // Step 1: Generate draft
+      // Step 1: Generate draft (with brand guidelines)
       console.log('Step 1: Generating draft...');
       const draftResponse = await fetch('/api/articles/generate-draft', {
         method: 'POST',
@@ -459,6 +647,7 @@ export default function ArticleEditorPage() {
           brief,
           outline,
           targetAudience: audience || undefined,
+          workspaceId, // Include workspace for voice profile
         }),
       });
 
@@ -616,7 +805,7 @@ export default function ArticleEditorPage() {
             {/* Tabs */}
             <div className="bg-white border border-slate-200 rounded-lg">
               <div className="flex border-b border-slate-200 overflow-x-auto">
-                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'images', 'score', 'workflow', 'sources'] as const).map((tab) => (
+                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'cta', 'images', 'score', 'workflow', 'sources'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -630,6 +819,7 @@ export default function ArticleEditorPage() {
                     {tab === 'content' && '✍️ Content'}
                     {tab === 'seo' && '🔍 SEO'}
                     {tab === 'crosslinks' && '🔗 Links'}
+                    {tab === 'cta' && '📣 CTA'}
                     {tab === 'images' && '🖼️ Images'}
                     {tab === 'score' && '✓ Publish-Ready'}
                     {tab === 'workflow' && '🔄 Workflow'}
@@ -759,12 +949,31 @@ export default function ArticleEditorPage() {
                   />
                 )}
 
+                {activeTab === 'cta' && (
+                  <CTAGenerator
+                    title={article.title}
+                    content={content}
+                    brief={brief}
+                    targetAudience={audience}
+                    onGenerate={handleGenerateCTA}
+                    onSelect={handleSelectCTA}
+                    isLoading={ctaLoading}
+                    ctas={ctas}
+                    selectedCTA={selectedCTA}
+                  />
+                )}
+
                 {activeTab === 'images' && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-                    <p className="text-slate-600">
-                      Image gallery coming in Phase 2 of P0.6
-                    </p>
-                  </div>
+                  <ImageGallery
+                    title={article.title}
+                    brief={brief}
+                    outline={outline}
+                    onGenerate={handleGenerateImages}
+                    onSelect={handleSelectImage}
+                    isLoading={imagesLoading}
+                    images={images}
+                    selectedImage={selectedImage}
+                  />
                 )}
 
                 {activeTab === 'score' && (
@@ -772,9 +981,10 @@ export default function ArticleEditorPage() {
                     content={content}
                     title={article.title}
                     wordCount={wordCount}
-                    hasImages={false} // TODO: Track images
+                    hasImages={!!selectedImage}
                     claimsVerified={0}
                     totalClaims={0}
+                    hasCTA={!!selectedCTA}
                   />
                 )}
 
@@ -919,6 +1129,34 @@ export default function ArticleEditorPage() {
                     </p>
                   ) : (
                     <p className="text-slate-500">No sources linked yet</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-600">Call-to-Action</p>
+                  {selectedCTA ? (
+                    <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                      <p className="font-semibold text-green-900">"{selectedCTA.text}"</p>
+                      <p className="text-xs text-green-700 mt-1 italic">{selectedCTA.rationale}</p>
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 text-sm">No CTA selected yet</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-600">Hero Image</p>
+                  {selectedImage ? (
+                    <div className="mt-1 rounded overflow-hidden border border-green-200">
+                      <img
+                        src={selectedImage.url}
+                        alt={selectedImage.alt}
+                        className="w-full h-auto object-cover"
+                      />
+                      <p className="text-xs text-green-700 p-2 bg-green-50">
+                        ✓ Hero image selected
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 text-sm">No image selected yet</p>
                   )}
                 </div>
                 <div>

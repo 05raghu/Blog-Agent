@@ -1,9 +1,7 @@
 // API route: POST/GET /api/strategy — Manage editorial strategy
 
 import { NextRequest, NextResponse } from 'next/server';
-
-// Temporary in-memory store (replace with DB later)
-const strategyStore = new Map<string, any>();
+import { strategyStore } from '@/lib/strategy-store';
 
 export async function POST(request: NextRequest) {
   try {

@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { DeleteConfirmationModal } from '@/components/delete-confirmation-modal';
 
 interface Topic {
   id: string;
@@ -18,6 +17,7 @@ interface Topic {
   audience?: string;
   score: number;
   confidence: number;
+  source?: 'ai' | 'manual';
   breakdown: {
     strategicRelevance: { score: number; evidence: string };
     audienceIcpUsefulness: { score: number; evidence: string };
@@ -60,6 +60,11 @@ function TopicsContent() {
   });
   const [strategyData, setStrategyData] = useState<any>(null);
 
+  // Topic generation form state
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [generatingTopics, setGeneratingTopics] = useState(false);
+  const [seedText, setSeedText] = useState('');
+
   // Edit state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
@@ -77,6 +82,7 @@ function TopicsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteOption, setDeleteOption] = useState<'topic-only' | 'with-articles'>('topic-only');
 
   // Auto-scroll to top when error appears
   useEffect(() => {
@@ -244,11 +250,12 @@ function TopicsContent() {
 
       const data = await response.json();
 
-      // Add the new topic to the list (with strategyId)
+      // Add the new topic to the list (with strategyId and source)
       setTopics((prev) => {
         const topicWithStrategy = {
           ...data.topic,
           strategyId: strategyId, // Add strategyId for filtering
+          source: 'manual' as const, // Mark as manually created
         };
         const updated = [topicWithStrategy, ...prev].sort((a, b) => b.score - a.score);
         // Save to localStorage
@@ -271,6 +278,59 @@ function TopicsContent() {
       setError((err as Error).message);
     } finally {
       setCreatingTopic(false);
+    }
+  };
+
+  const handleGenerateTopics = async () => {
+    if (!strategyId) return;
+
+    try {
+      setGeneratingTopics(true);
+      setError('');
+
+      const response = await fetch('/api/strategy/topics/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strategyId,
+          seed: seedText.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to generate topics');
+      }
+
+      const data = await response.json();
+
+      // Update topics list with new generated topics
+      const newTopics = (data.generated || []).map((t: Topic) => ({
+        ...t,
+        strategyId,
+        source: 'ai' as const, // Mark as AI-generated
+      }));
+
+      setTopics((prev) => {
+        const updated = [...newTopics, ...prev].sort((a, b) => b.score - a.score);
+        localStorage.setItem('topics', JSON.stringify(updated));
+        return updated;
+      });
+
+      const generated = data.generated?.length || 0;
+      const requested = data.requested || 10;
+      if (generated < requested) {
+        setSuccess(`✓ Generated ${generated} of ${requested} requested topics`);
+      } else {
+        setSuccess(`✓ Generated ${generated} topic candidates`);
+      }
+
+      setSeedText('');
+      setShowGenerateForm(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setGeneratingTopics(false);
     }
   };
 
@@ -406,13 +466,14 @@ function TopicsContent() {
   };
 
   const confirmDeleteTopic = async () => {
-    if (!topicToDelete) return;
+    if (!topicToDelete || !strategyId) return;
 
     try {
       setIsDeleting(true);
+
+      // Delete from local state and localStorage
       const updated = topics.filter((t) => t.id !== topicToDelete.id);
       setTopics(updated);
-      // Save to localStorage
       localStorage.setItem('topics', JSON.stringify(updated));
 
       // Remove from approved topics if it was approved
@@ -421,11 +482,42 @@ function TopicsContent() {
       setApprovedTopics(updatedApprovals);
       localStorage.setItem(`approvals_${strategyId}`, JSON.stringify(Array.from(updatedApprovals)));
 
+      // Also try to delete from API (for AI-generated topics)
+      try {
+        await fetch(`/api/strategy/topics/${topicToDelete.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strategyId }),
+        });
+      } catch (apiErr) {
+        // API delete failed, but local delete succeeded
+        console.log('API delete failed, but local topic was deleted:', apiErr);
+      }
+
+      // If user chose to delete articles too, delete associated articles
+      if (deleteOption === 'with-articles' && topicToArticleMap.has(topicToDelete.id)) {
+        const articleId = topicToArticleMap.get(topicToDelete.id);
+        if (articleId) {
+          try {
+            await fetch(`/api/articles/${articleId}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+            });
+          } catch (apiErr) {
+            console.log('Failed to delete associated article:', apiErr);
+          }
+        }
+      }
+
       setShowDeleteModal(false);
       setTopicToDelete(null);
+      setDeleteOption('topic-only');
 
       // Show success toast
-      setSuccess(`✓ "${topicToDelete.title}" deleted successfully`);
+      const message = deleteOption === 'with-articles'
+        ? `✓ "${topicToDelete.title}" and associated article deleted`
+        : `✓ "${topicToDelete.title}" deleted successfully`;
+      setSuccess(message);
     } finally {
       setIsDeleting(false);
     }
@@ -450,9 +542,16 @@ function TopicsContent() {
         {/* Header */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-hero" style={{ fontSize: '46px' }}>
-              Topic Candidates
-            </h1>
+            <div>
+              <h1 className="text-hero" style={{ fontSize: '40px', marginTop: "2px" }}>
+                Topic Candidates
+              </h1>
+              {strategyData && (
+                <p className="text-sm text-slate-700 mt-2">
+                  Strategy: <span className="text-blue-600 font-semibold">{strategyData.offerings?.join(', ') || strategyData.title}</span>
+                </p>
+              )}
+            </div>
             <div className="flex gap-3">
               <Link href={`/knowledge?strategyId=${strategyId}`} className="btn-secondary text-sm">
                 📚 Knowledge Base
@@ -464,13 +563,10 @@ function TopicsContent() {
                 👥 Manage SMEs
               </Link>
               <Link href="/strategy" className="btn-secondary text-sm">
-                New Strategy
+                Strategies
               </Link>
             </div>
           </div>
-          {/* <p className="lead text-slate-700">
-            {topics.length} topics scored against your strategy
-          </p> */}
         </div>
 
         {/* Create Topic Form */}
@@ -602,6 +698,51 @@ function TopicsContent() {
           )}
         </div>
 
+        {/* Generate Topics Form */}
+        <div className="mb-8 bg-white border border-slate-200 rounded-lg p-6">
+          <div className="flex justify-between items-center">
+            <h3 className="font-bold">✨ Generate Topics with AI</h3>
+            <button
+              onClick={() => setShowGenerateForm(!showGenerateForm)}
+              className="btn-secondary text-sm"
+            >
+              {showGenerateForm ? '✕ Cancel' : '✨ Generate Topics'}
+            </button>
+          </div>
+
+          {showGenerateForm && (
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-1">
+                  Seed / Focus (optional)
+                </label>
+                <textarea
+                  value={seedText}
+                  onChange={(e) => setSeedText(e.target.value)}
+                  placeholder="e.g., Focus on migration from legacy systems — or leave blank to generate purely from your strategy"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                />
+              </div>
+
+              <button
+                onClick={handleGenerateTopics}
+                disabled={generatingTopics}
+                className="btn-primary flex items-center gap-2 disabled:opacity-50"
+              >
+                {generatingTopics ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Generating 10 topics...
+                  </>
+                ) : (
+                  '✨ Generate 10 Topics'
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Error */}
         {error && (
           <div className="error-message mb-8">
@@ -623,19 +764,35 @@ function TopicsContent() {
         {/* Topics Grid */}
         {topics.length > 0 ? (
           <div className="space-y-4">
-            {topics.map((topic) => (
+            {topics.map((topic, index) => (
               <div
                 key={topic.id}
                 className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-editorial text-lg mb-1">{topic.title}</h3>
+                  <div className="flex gap-3 items-start flex-1">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-editorial text-lg mb-1">{topic.title}</h3>
                     <p className="text-sm text-slate-600 mb-2">{topic.summary}</p>
-                    <div className="flex gap-3 items-center">
+                    <div className="flex gap-3 items-center flex-wrap">
                       <span className="inline-block px-3 py-1 bg-slate-100 rounded text-xs font-medium text-slate-700">
                         {topic.format}
                       </span>
+                      <span className={`inline-block px-3 py-1 rounded text-xs font-medium ${
+                        topic.source === 'ai'
+                          ? 'bg-purple-100 text-purple-700'
+                          : topic.source === 'manual'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {topic.source === 'ai' && '✨ AI Generated'}
+                        {topic.source === 'manual' && '✋ Manual'}
+                        {!topic.source && '📝 Unknown'}
+                      </span>
+                    </div>
                     </div>
                   </div>
 
@@ -926,18 +1083,97 @@ function TopicsContent() {
         )}
 
         {/* Delete Confirmation Modal */}
-        <DeleteConfirmationModal
-          isOpen={showDeleteModal}
-          title="Delete Topic?"
-          message="This will remove the topic and all associated data. This action cannot be undone."
-          itemName={topicToDelete?.title || ''}
-          isDeleting={isDeleting}
-          onConfirm={confirmDeleteTopic}
-          onCancel={() => {
-            setShowDeleteModal(false);
-            setTopicToDelete(null);
-          }}
-        />
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && topicToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-3xl">⚠️</div>
+                <h3 className="text-lg font-bold text-slate-900">Delete Topic?</h3>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-slate-600 mb-3">
+                  {topicToArticleMap.has(topicToDelete.id)
+                    ? 'This topic has an associated article. How would you like to proceed?'
+                    : 'This will remove the topic. This action cannot be undone.'}
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded p-3">
+                  <p className="text-sm font-medium text-red-900">
+                    "{topicToDelete.title}"
+                  </p>
+                </div>
+              </div>
+
+              {/* Options for topics with articles */}
+              {topicToArticleMap.has(topicToDelete.id) && (
+                <div className="mb-6 space-y-3">
+                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{borderColor: deleteOption === 'topic-only' ? '#3b82f6' : '#e2e8f0'}}>
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="topic-only"
+                      checked={deleteOption === 'topic-only'}
+                      onChange={(e) => setDeleteOption(e.target.value as 'topic-only' | 'with-articles')}
+                      className="mr-3"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Delete Topic Only</p>
+                      <p className="text-xs text-slate-600">Keep the associated article</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{borderColor: deleteOption === 'with-articles' ? '#3b82f6' : '#e2e8f0'}}>
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="with-articles"
+                      checked={deleteOption === 'with-articles'}
+                      onChange={(e) => setDeleteOption(e.target.value as 'topic-only' | 'with-articles')}
+                      className="mr-3"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Delete Topic & Article</p>
+                      <p className="text-xs text-slate-600">Remove both topic and associated article</p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              <p className="text-xs text-slate-500 mb-6">
+                This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setTopicToDelete(null);
+                    setDeleteOption('topic-only');
+                  }}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteTopic}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    '🗑️ Delete'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         {/* <div className="mt-12 pt-8 border-t border-slate-300 text-center text-sm text-slate-600">
