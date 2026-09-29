@@ -62,28 +62,38 @@ export default function StrategyPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {strategies.map((strategy) => (
+                {strategies.map((strategy, index) => (
                   <div
                     key={strategy.id}
-                    className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 transition-colors"
+                    className="border border-slate-200 rounded-lg p-4 hover:border-slate-400 transition-colors flex gap-4"
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-slate-900">{strategy.offerings?.join(', ') || strategy.title}</h3>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Target ICPs: {strategy.targetIcps?.join(', ') || 'None'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Created: {new Date(strategy.createdAt).toLocaleDateString()}
-                        </p>
+                    {/* Strategy Number Badge */}
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                        {index + 1}
                       </div>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/topics?strategyId=${strategy.id}`}
-                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                        >
-                          View Topics
-                        </Link>
+                    </div>
+
+                    {/* Strategy Content */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{strategy.offerings?.join(', ') || strategy.title}</h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Target ICPs: {strategy.targetIcps?.join(', ') || 'None'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Created: {new Date(strategy.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/topics?strategyId=${strategy.id}`}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                          >
+                            View Topics
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
