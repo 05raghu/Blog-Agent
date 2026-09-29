@@ -47,11 +47,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { strategyId, guidelines, strongExemplars, weakExemplars, approvalStatus } = body;
+    const {
+      strategyId,
+      guidelines,
+      strongExemplars,
+      weakExemplars,
+      approvalStatus,
+      // Structured voice profile fields
+      principles,
+      desiredPatterns,
+      prohibitedPatterns,
+      terminology,
+      toneBoundaries,
+    } = body;
 
-    if (!strategyId || !guidelines) {
+    if (!strategyId) {
       return NextResponse.json(
-        { error: 'Missing required fields: strategyId, guidelines' },
+        { error: 'Missing required field: strategyId' },
         { status: 400 }
       );
     }
@@ -59,9 +71,16 @@ export async function POST(request: NextRequest) {
     const profile = {
       id: `brand_${strategyId}`,
       strategyId,
-      guidelines,
+      // Text-based (legacy)
+      guidelines: guidelines || '',
       strongExemplars: strongExemplars || [],
       weakExemplars: weakExemplars || [],
+      // Structured voice profile (new)
+      principles: principles || [],
+      desiredPatterns: desiredPatterns || [],
+      prohibitedPatterns: prohibitedPatterns || [],
+      terminology: terminology || {},
+      toneBoundaries: toneBoundaries || [],
       approvalStatus: approvalStatus || 'pending', // pending | approved
       createdAt: new Date(),
       updatedAt: new Date(),

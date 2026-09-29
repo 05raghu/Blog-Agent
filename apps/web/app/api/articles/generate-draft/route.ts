@@ -3,11 +3,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
-import { getVoiceProfile } from '@/lib/brand-store';
+import { brandProfileStore } from '@/app/api/knowledge/brand-profile/route';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, brief, outline, targetAudience, workspaceId = 'default-workspace' } = await request.json();
+    const { title, brief, outline, targetAudience, strategyId, workspaceId = 'default-workspace' } = await request.json();
 
     if (!title || !brief || !outline) {
       return NextResponse.json(
@@ -16,37 +16,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch voice profile (brand guidelines)
-    const voiceProfile = getVoiceProfile(workspaceId);
+    // Fetch brand profile from knowledge endpoint (keyed by strategyId)
+    let voiceProfile: any = null;
+    if (strategyId) {
+      voiceProfile = brandProfileStore.get(strategyId);
+    }
 
     // Build voice profile string from stored data if available and approved
     let voiceProfileString: string | undefined;
-    if (voiceProfile && voiceProfile.approved) {
+    if (voiceProfile && voiceProfile.approvalStatus === 'approved') {
       const parts: string[] = [];
 
-      if (voiceProfile.principles.length > 0) {
+      // Use structured fields if available, otherwise fall back to guidelines text
+      if (voiceProfile.principles && voiceProfile.principles.length > 0) {
         parts.push(`Principles: ${voiceProfile.principles.join(', ')}`);
       }
-      if (voiceProfile.desiredPatterns.length > 0) {
+      if (voiceProfile.desiredPatterns && voiceProfile.desiredPatterns.length > 0) {
         parts.push(`Desired patterns: ${voiceProfile.desiredPatterns.join(', ')}`);
       }
-      if (voiceProfile.prohibitedPatterns.length > 0) {
+      if (voiceProfile.prohibitedPatterns && voiceProfile.prohibitedPatterns.length > 0) {
         parts.push(`Avoid: ${voiceProfile.prohibitedPatterns.join(', ')}`);
       }
-      if (voiceProfile.toneBoundaries.length > 0) {
+      if (voiceProfile.toneBoundaries && voiceProfile.toneBoundaries.length > 0) {
         parts.push(`Tone: ${voiceProfile.toneBoundaries.join(', ')}`);
       }
-      if (Object.keys(voiceProfile.terminology).length > 0) {
+      if (voiceProfile.terminology && Object.keys(voiceProfile.terminology).length > 0) {
         const terms = Object.entries(voiceProfile.terminology)
           .map(([term, explanation]) => `${term} (${explanation})`)
           .join(', ');
         parts.push(`Terminology: ${terms}`);
       }
-      if (voiceProfile.exemplars.strong.length > 0) {
-        parts.push(`Good examples: ${voiceProfile.exemplars.strong.join('; ')}`);
+      if (voiceProfile.strongExemplars && voiceProfile.strongExemplars.length > 0) {
+        parts.push(`Good examples: ${voiceProfile.strongExemplars.join('; ')}`);
       }
 
-      voiceProfileString = parts.join('\n');
+      // Fall back to guidelines text if no structured fields
+      if (parts.length === 0 && voiceProfile.guidelines) {
+        voiceProfileString = voiceProfile.guidelines;
+      } else {
+        voiceProfileString = parts.join('\n');
+      }
     }
 
     const provider = await getTextModelProvider();
@@ -62,14 +71,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       draft,
-      voiceProfileApplied: !!voiceProfile?.approved,
-      voiceProfile: voiceProfile?.approved ? {
-        principles: voiceProfile.principles,
-        desiredPatterns: voiceProfile.desiredPatterns,
-        prohibitedPatterns: voiceProfile.prohibitedPatterns,
-        terminology: voiceProfile.terminology,
-        toneBoundaries: voiceProfile.toneBoundaries,
-        exemplars: voiceProfile.exemplars,
+      voiceProfileApplied: voiceProfile?.approvalStatus === 'approved',
+      voiceProfile: voiceProfile?.approvalStatus === 'approved' ? {
+        principles: voiceProfile.principles || [],
+        desiredPatterns: voiceProfile.desiredPatterns || [],
+        prohibitedPatterns: voiceProfile.prohibitedPatterns || [],
+        terminology: voiceProfile.terminology || {},
+        toneBoundaries: voiceProfile.toneBoundaries || [],
+        strongExemplars: voiceProfile.strongExemplars || [],
+        weakExemplars: voiceProfile.weakExemplars || [],
       } : null,
     });
   } catch (error) {

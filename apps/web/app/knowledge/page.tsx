@@ -92,6 +92,18 @@ function KnowledgeContent() {
   const [weakExemplars, setWeakExemplars] = useState<string[]>([]);
   const [newStrongExemplar, setNewStrongExemplar] = useState('');
   const [newWeakExemplar, setNewWeakExemplar] = useState('');
+  // Structured voice profile fields
+  const [principles, setPrinciples] = useState<string[]>([]);
+  const [desiredPatterns, setDesiredPatterns] = useState<string[]>([]);
+  const [prohibitedPatterns, setProhibitedPatterns] = useState<string[]>([]);
+  const [toneBoundaries, setToneBoundaries] = useState<string[]>([]);
+  const [terminology, setTerminology] = useState<Record<string, string>>({});
+  const [newPrinciple, setNewPrinciple] = useState('');
+  const [newDesiredPattern, setNewDesiredPattern] = useState('');
+  const [newProhibitedPattern, setNewProhibitedPattern] = useState('');
+  const [newToneBoundary, setNewToneBoundary] = useState('');
+  const [newTerm, setNewTerm] = useState('');
+  const [newTermExplanation, setNewTermExplanation] = useState('');
   const [voiceProfile, setVoiceProfile] = useState<any>(null);
   const [voiceAlignmentScores, setVoiceAlignmentScores] = useState<Record<string, number>>({});
   const [plagiarismScores, setPlagiarismScores] = useState<Record<string, number>>({});
@@ -128,6 +140,11 @@ function KnowledgeContent() {
           setBrandGuidelines(data.profile.guidelines || '');
           setStrongExemplars(data.profile.strongExemplars || []);
           setWeakExemplars(data.profile.weakExemplars || []);
+          setPrinciples(data.profile.principles || []);
+          setDesiredPatterns(data.profile.desiredPatterns || []);
+          setProhibitedPatterns(data.profile.prohibitedPatterns || []);
+          setToneBoundaries(data.profile.toneBoundaries || []);
+          setTerminology(data.profile.terminology || {});
           setBrandApprovalStatus(data.profile.approvalStatus || 'pending');
         }
       }
@@ -1680,6 +1697,99 @@ function KnowledgeContent() {
                   </div>
                 </div>
 
+                {/* Structured Voice Profile Fields */}
+                <div className="border-t pt-6 space-y-6">
+                  <h3 className="text-sm font-semibold text-slate-900">Structured Voice Profile (Optional)</h3>
+
+                  {/* Principles */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Principles</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {principles.map((p, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
+                          {p}
+                          <button onClick={() => setPrinciples(principles.filter((_, j) => j !== i))} className="text-red-600 hover:text-red-900">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" value={newPrinciple} onChange={(e) => setNewPrinciple(e.target.value)} placeholder="e.g., Evidence-backed content" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button onClick={() => { if (newPrinciple.trim()) { setPrinciples([...principles, newPrinciple]); setNewPrinciple(''); } }} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-medium">Add</button>
+                    </div>
+                  </div>
+
+                  {/* Desired Patterns */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Desired Patterns</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {desiredPatterns.map((p, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs">
+                          {p}
+                          <button onClick={() => setDesiredPatterns(desiredPatterns.filter((_, j) => j !== i))} className="text-red-600 hover:text-red-900">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" value={newDesiredPattern} onChange={(e) => setNewDesiredPattern(e.target.value)} placeholder="e.g., Use real examples" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button onClick={() => { if (newDesiredPattern.trim()) { setDesiredPatterns([...desiredPatterns, newDesiredPattern]); setNewDesiredPattern(''); } }} className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-medium">Add</button>
+                    </div>
+                  </div>
+
+                  {/* Prohibited Patterns */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Prohibited Patterns</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {prohibitedPatterns.map((p, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 rounded text-xs">
+                          {p}
+                          <button onClick={() => setProhibitedPatterns(prohibitedPatterns.filter((_, j) => j !== i))} className="text-red-600 hover:text-red-900">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" value={newProhibitedPattern} onChange={(e) => setNewProhibitedPattern(e.target.value)} placeholder="e.g., Hype language" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button onClick={() => { if (newProhibitedPattern.trim()) { setProhibitedPatterns([...prohibitedPatterns, newProhibitedPattern]); setNewProhibitedPattern(''); } }} className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-medium">Add</button>
+                    </div>
+                  </div>
+
+                  {/* Tone Boundaries */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Tone Boundaries</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {toneBoundaries.map((t, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded text-xs">
+                          {t}
+                          <button onClick={() => setToneBoundaries(toneBoundaries.filter((_, j) => j !== i))} className="text-red-600 hover:text-red-900">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" value={newToneBoundary} onChange={(e) => setNewToneBoundary(e.target.value)} placeholder="e.g., Professional but approachable" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button onClick={() => { if (newToneBoundary.trim()) { setToneBoundaries([...toneBoundaries, newToneBoundary]); setNewToneBoundary(''); } }} className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded font-medium">Add</button>
+                    </div>
+                  </div>
+
+                  {/* Terminology */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2">Terminology</label>
+                    <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
+                      {Object.entries(terminology).map(([term, explanation], i) => (
+                        <div key={i} className="flex justify-between items-start gap-2 p-1 bg-slate-50 rounded text-xs">
+                          <div className="flex-1">
+                            <strong>{term}</strong>: {explanation}
+                          </div>
+                          <button onClick={() => { const updated = { ...terminology }; delete updated[term]; setTerminology(updated); }} className="text-red-600 hover:text-red-900 flex-shrink-0">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-1">
+                      <input type="text" value={newTerm} onChange={(e) => setNewTerm(e.target.value)} placeholder="Term" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <input type="text" value={newTermExplanation} onChange={(e) => setNewTermExplanation(e.target.value)} placeholder="Explanation" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button onClick={() => { if (newTerm.trim() && newTermExplanation.trim()) { setTerminology({ ...terminology, [newTerm]: newTermExplanation }); setNewTerm(''); setNewTermExplanation(''); } }} className="w-full px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white text-xs rounded font-medium">Add Term</button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Approval Status */}
                 <div className={`p-3 rounded border ${
                   brandApprovalStatus === 'approved'
@@ -1717,6 +1827,12 @@ function KnowledgeContent() {
                             guidelines: brandGuidelines,
                             strongExemplars,
                             weakExemplars,
+                            // Structured voice profile
+                            principles,
+                            desiredPatterns,
+                            prohibitedPatterns,
+                            toneBoundaries,
+                            terminology,
                             approvalStatus: 'approved',
                           }),
                         });

@@ -647,7 +647,7 @@ export default function ArticleEditorPage() {
           brief,
           outline,
           targetAudience: audience || undefined,
-          workspaceId, // Include workspace for voice profile
+          strategyId, // Include strategy to fetch brand profile from knowledge
         }),
       });
 
