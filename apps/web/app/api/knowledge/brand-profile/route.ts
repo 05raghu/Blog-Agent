@@ -16,21 +16,14 @@ export { brandProfileStore };
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const strategyId = searchParams.get('strategyId');
+    const workspaceId = searchParams.get('workspaceId') || 'default-workspace';
 
-    if (!strategyId) {
-      return NextResponse.json(
-        { error: 'Missing required parameter: strategyId' },
-        { status: 400 }
-      );
-    }
-
-    const profile = brandProfileStore.get(strategyId);
+    const profile = brandProfileStore.get(workspaceId);
 
     if (!profile) {
       return NextResponse.json({
         profile: null,
-        message: 'No brand profile found for this strategy',
+        message: 'No brand profile found for this workspace',
       });
     }
 
@@ -48,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      strategyId,
+      workspaceId = 'default-workspace',
       guidelines,
       strongExemplars,
       weakExemplars,
@@ -61,16 +54,9 @@ export async function POST(request: NextRequest) {
       toneBoundaries,
     } = body;
 
-    if (!strategyId) {
-      return NextResponse.json(
-        { error: 'Missing required field: strategyId' },
-        { status: 400 }
-      );
-    }
-
     const profile = {
-      id: `brand_${strategyId}`,
-      strategyId,
+      id: `brand_${workspaceId}`,
+      workspaceId,
       // Text-based (legacy)
       guidelines: guidelines || '',
       strongExemplars: strongExemplars || [],
@@ -86,9 +72,9 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    brandProfileStore.set(strategyId, profile);
+    brandProfileStore.set(workspaceId, profile);
 
-    console.log(`[API] Brand profile ${approvalStatus === 'approved' ? 'approved' : 'saved'} for strategy ${strategyId}`);
+    console.log(`[API] Brand profile ${approvalStatus === 'approved' ? 'approved' : 'saved'} for workspace ${workspaceId}`);
 
     return NextResponse.json({
       success: true,

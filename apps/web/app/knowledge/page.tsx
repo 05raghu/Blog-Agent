@@ -48,6 +48,7 @@ function KnowledgeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const strategyId = searchParams?.get('strategyId');
+  const workspaceId = 'default-workspace'; // TODO: derive from auth context
 
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,9 +132,8 @@ function KnowledgeContent() {
   }, [toast]);
 
   const loadBrandProfile = async () => {
-    if (!strategyId) return;
     try {
-      const response = await fetch(`/api/knowledge/brand-profile?strategyId=${strategyId}`);
+      const response = await fetch(`/api/knowledge/brand-profile?workspaceId=${workspaceId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.profile) {
@@ -1867,7 +1867,7 @@ function KnowledgeContent() {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            strategyId,
+                            workspaceId,
                             guidelines: brandGuidelines,
                             strongExemplars,
                             weakExemplars,

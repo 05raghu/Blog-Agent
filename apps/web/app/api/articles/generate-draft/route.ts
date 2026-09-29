@@ -7,7 +7,7 @@ import { brandProfileStore } from '@/app/api/knowledge/brand-profile/route';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, brief, outline, targetAudience, strategyId, workspaceId = 'default-workspace' } = await request.json();
+    const { title, brief, outline, targetAudience, workspaceId = 'default-workspace' } = await request.json();
 
     if (!title || !brief || !outline) {
       return NextResponse.json(
@@ -16,11 +16,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch brand profile from knowledge endpoint (keyed by strategyId)
-    let voiceProfile: any = null;
-    if (strategyId) {
-      voiceProfile = brandProfileStore.get(strategyId);
-    }
+    // Fetch brand profile from knowledge endpoint (keyed by workspaceId)
+    const voiceProfile = brandProfileStore.get(workspaceId);
 
     // Build voice profile string from stored data if available and approved
     let voiceProfileString: string | undefined;

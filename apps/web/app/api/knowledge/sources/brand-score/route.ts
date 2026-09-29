@@ -9,17 +9,17 @@ import { brandProfileStore } from '../../brand-profile/route';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { strategyId, sourceTitle, sourceContent, fetchedContent } = body;
+    const { workspaceId = 'default-workspace', sourceTitle, sourceContent, fetchedContent } = body;
 
-    if (!strategyId || !sourceTitle) {
+    if (!sourceTitle) {
       return NextResponse.json(
-        { error: 'Missing required fields: strategyId, sourceTitle' },
+        { error: 'Missing required field: sourceTitle' },
         { status: 400 }
       );
     }
 
-    // Get brand profile for this strategy
-    const brandProfile = (brandProfileStore as any).get(strategyId);
+    // Get brand profile for this workspace
+    const brandProfile = (brandProfileStore as any).get(workspaceId);
 
     if (!brandProfile || brandProfile.approvalStatus !== 'approved') {
       return NextResponse.json({
