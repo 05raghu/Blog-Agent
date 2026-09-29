@@ -3,6 +3,7 @@
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 import { ArticleEditor } from '@/components/article-editor';
 import { BriefEditor } from '@/components/brief-editor';
 import { PublishReadiness } from '@/components/publish-readiness';
@@ -56,6 +57,9 @@ export default function ArticleEditorPage() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
 
+  // Get workspaceId from context
+  const { workspaceId: contextWorkspaceId } = useWorkspace();
+
   // Editor state
   const [brief, setBrief] = useState('');
   const [angle, setAngle] = useState('');
@@ -65,7 +69,6 @@ export default function ArticleEditorPage() {
   const [currentStage, setCurrentStage] = useState<ArticleStage>('NOT_STARTED');
   const [publishDate, setPublishDate] = useState('');
   const [editingPublishDate, setEditingPublishDate] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState('default-workspace');
 
   // Sources state
   const [sources, setSources] = useState<any[]>([]);
@@ -647,7 +650,7 @@ export default function ArticleEditorPage() {
           brief,
           outline,
           targetAudience: audience || undefined,
-          workspaceId: 'default-workspace', // Fetch brand profile by workspace
+          workspaceId: contextWorkspaceId, // Fetch brand profile by workspace
         }),
       });
 

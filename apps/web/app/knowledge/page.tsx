@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useWorkspace } from '@/lib/workspace-context';
 import { DeleteConfirmationModal } from '@/components/delete-confirmation-modal';
 
 interface Source {
@@ -47,8 +48,8 @@ const EditIcon = () => (
 function KnowledgeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { workspaceId, role } = useWorkspace();
   const strategyId = searchParams?.get('strategyId');
-  const workspaceId = 'default-workspace'; // TODO: derive from auth context
 
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
