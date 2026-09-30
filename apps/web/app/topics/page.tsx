@@ -1602,7 +1602,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
 
               {!loadingRecommendations && recommendedSmes.length === 0 && smes.length === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6 text-sm text-yellow-800">
-                  <strong>No SMEs available.</strong> Create SME profiles first at <a href="/sme" className="font-medium text-signal hover:underline">/sme →</a>
+                  <strong>No SMEs available.</strong> Create SME profiles first at <a href={`/sme?strategyId=${strategyId}`} className="font-medium text-signal hover:underline">/sme →</a>
                 </div>
               )}
 

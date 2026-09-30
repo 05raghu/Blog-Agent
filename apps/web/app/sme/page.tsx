@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
 
@@ -18,6 +19,8 @@ interface SMEProfile {
 }
 
 function SMEContent() {
+  const searchParams = useSearchParams();
+  const strategyId = searchParams?.get('strategyId');
   const { workspaceId, loading: wsLoading } = useWorkspace();
 
   const [smes, setSmes] = useState<SMEProfile[]>([]);
@@ -190,7 +193,10 @@ function SMEContent() {
 
         {/* Navigation */}
         <div className="mb-6 flex gap-3">
-          <Link href="/topics" className="btn-secondary text-sm">
+          <Link
+            href={strategyId ? `/topics?strategyId=${strategyId}` : '/topics'}
+            className="btn-secondary text-sm"
+          >
             ← Back to Topics
           </Link>
         </div>
