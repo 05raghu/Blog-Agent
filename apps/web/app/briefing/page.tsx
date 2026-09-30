@@ -70,8 +70,7 @@ const DEFAULT_QUESTIONS = [
 
 function BriefingContent() {
   const searchParams = useSearchParams();
-  const { workspaceId, loading: wsLoading } = useWorkspace();
-  const sessionId = searchParams?.get('sessionId');
+  const { workspaceId } = useWorkspace();
   const topicId = searchParams?.get('topicId');
   const smeId = searchParams?.get('smeId');
 

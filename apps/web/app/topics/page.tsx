@@ -107,11 +107,11 @@ function TopicsContent() {
 
   // Show success toast and auto-clear
   useEffect(() => {
-    if (success) {
-      console.log('[SUCCESS]', success);
-      const timer = setTimeout(() => setSuccess(''), 3000);
-      return () => clearTimeout(timer);
-    }
+    if (!success) return;
+
+    console.log('[SUCCESS]', success);
+    const timer = setTimeout(() => setSuccess(''), 3000);
+    return () => clearTimeout(timer);
   }, [success]);
 
   useEffect(() => {
