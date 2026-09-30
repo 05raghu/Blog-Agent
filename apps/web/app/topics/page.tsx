@@ -55,6 +55,8 @@ function TopicsContent() {
   const [showSmeAssignmentModal, setShowSmeAssignmentModal] = useState(false);
   const [topicForSmeAssignment, setTopicForSmeAssignment] = useState<Topic | null>(null);
   const [selectedSmeId, setSelectedSmeId] = useState<string>('');
+  const [recommendedSmes, setRecommendedSmes] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   // Topic creation form state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -214,12 +216,15 @@ function TopicsContent() {
     }
   };
 
-  const handleApproveTopic = (topic: Topic) => {
+  const handleApproveTopic = async (topic: Topic) => {
     if (!approvedTopics.has(topic.id)) {
       // Show SME assignment modal when approving
       setTopicForSmeAssignment(topic);
       setSelectedSmeId(topic.assignedSmeId || '');
       setShowSmeAssignmentModal(true);
+
+      // Fetch SME recommendations
+      await fetchSmeRecommendations(topic);
     } else {
       // Unapprove
       setApprovedTopics((prev) => {
@@ -228,6 +233,41 @@ function TopicsContent() {
         localStorage.setItem(`approvals_${strategyId}`, JSON.stringify(Array.from(updated)));
         return updated;
       });
+    }
+  };
+
+  const fetchSmeRecommendations = async (topic: Topic) => {
+    try {
+      setLoadingRecommendations(true);
+      const response = await fetch('/api/sme/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          topic: {
+            title: topic.title,
+            summary: topic.summary,
+            angle: topic.angle,
+            targetOffering: topic.targetOffering,
+            format: topic.format,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendedSmes(data.recommendations || []);
+
+        // Auto-select top recommendation if not already assigned
+        if (data.recommendations?.length > 0 && !topic.assignedSmeId) {
+          setSelectedSmeId(data.recommendations[0].smeId);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch SME recommendations:', err);
+      setRecommendedSmes([]);
+    } finally {
+      setLoadingRecommendations(false);
     }
   };
 
@@ -1464,45 +1504,120 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
           </div>
         )}
 
-        {/* SME Assignment Modal */}
+        {/* SME Assignment Modal - with Recommendations */}
         {showSmeAssignmentModal && topicForSmeAssignment && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Assign SME to Topic</h3>
-              <p className="text-slate-600 mb-4">
-                <strong>{topicForSmeAssignment.title}</strong>
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-900 mb-2">
-                  Select Subject Matter Expert
-                </label>
-                <select
-                  value={selectedSmeId}
-                  onChange={(e) => setSelectedSmeId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-signal"
-                >
-                  <option value="">-- Choose an SME or Skip --</option>
-                  {smes.map((sme) => (
-                    <option key={sme.id} value={sme.id}>
-                      {sme.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {smes.length === 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4 text-xs text-yellow-800">
-                  No SMEs available. <a href="/sme" className="font-medium text-signal hover:underline">Create one first →</a>
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold">Assign SME to Topic</h3>
+                  <p className="text-slate-600 text-sm mt-1">
+                    <strong>{topicForSmeAssignment.title}</strong>
+                  </p>
                 </div>
-              )}
-
-              <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {
                     setShowSmeAssignmentModal(false);
                     setTopicForSmeAssignment(null);
                     setSelectedSmeId('');
+                    setRecommendedSmes([]);
+                  }}
+                  className="text-slate-500 hover:text-slate-700 text-2xl font-light"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {loadingRecommendations && (
+                <div className="text-center py-8">
+                  <div className="inline-block w-6 h-6 border-3 border-slate-300 border-t-signal rounded-full animate-spin"></div>
+                  <p className="text-slate-600 mt-2 text-sm">Analyzing expertise fit...</p>
+                </div>
+              )}
+
+              {!loadingRecommendations && recommendedSmes.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  <p className="text-sm font-medium text-slate-700">
+                    System Recommendations ({recommendedSmes.length} available):
+                  </p>
+
+                  {recommendedSmes.map((rec, idx) => (
+                    <label
+                      key={rec.smeId}
+                      className={`block p-4 border rounded-lg cursor-pointer transition-all ${
+                        selectedSmeId === rec.smeId
+                          ? 'border-signal bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <input
+                          type="radio"
+                          name="sme"
+                          value={rec.smeId}
+                          checked={selectedSmeId === rec.smeId}
+                          onChange={(e) => setSelectedSmeId(e.target.value)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="font-semibold text-slate-900">
+                                #{idx + 1} {rec.smeName}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-signal">{rec.fitScore}%</div>
+                              <div className="text-xs text-slate-600">fit score</div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="bg-slate-50 rounded p-2 border border-slate-200">
+                              <div className="text-xs text-slate-600">Topic Fit</div>
+                              <div className="font-bold text-slate-900">{rec.topicFitScore}</div>
+                            </div>
+                            <div className="bg-slate-50 rounded p-2 border border-slate-200">
+                              <div className="text-xs text-slate-600">Availability</div>
+                              <div className="font-bold text-slate-900">{rec.availabilityScore}</div>
+                            </div>
+                            <div className="bg-slate-50 rounded p-2 border border-slate-200">
+                              <div className="text-xs text-slate-600">Experience</div>
+                              <div className="font-bold text-slate-900">{rec.priorWorkScore}</div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 text-xs text-slate-600">
+                            <div>✓ {rec.reasoning.topicFit}</div>
+                            <div>⏱ {rec.reasoning.availability}</div>
+                            <div>📚 {rec.reasoning.priorWork}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {!loadingRecommendations && recommendedSmes.length === 0 && smes.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6 text-sm text-yellow-800">
+                  <strong>No SMEs available.</strong> Create SME profiles first at <a href="/sme" className="font-medium text-signal hover:underline">/sme →</a>
+                </div>
+              )}
+
+              {!loadingRecommendations && recommendedSmes.length === 0 && smes.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6 text-sm text-blue-800">
+                  <strong>No strong matches found.</strong> Available SMEs don't closely match this topic. You can still select one manually or create a more specialized SME.
+                </div>
+              )}
+
+              <div className="border-t border-slate-200 pt-4 flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowSmeAssignmentModal(false);
+                    setTopicForSmeAssignment(null);
+                    setSelectedSmeId('');
+                    setRecommendedSmes([]);
                   }}
                   className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all"
                 >
@@ -1510,7 +1625,12 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                 </button>
                 <button
                   onClick={handleAssignSme}
-                  className="px-4 py-2 rounded bg-signal text-white hover:bg-blue-700 transition-all"
+                  disabled={!selectedSmeId}
+                  className={`px-4 py-2 rounded text-white transition-all ${
+                    selectedSmeId
+                      ? 'bg-signal hover:bg-blue-700'
+                      : 'bg-slate-300 cursor-not-allowed'
+                  }`}
                 >
                   ✓ Approve & Assign
                 </button>
