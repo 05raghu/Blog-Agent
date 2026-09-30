@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 
 interface Topic {
   id: string;
@@ -18,6 +19,8 @@ interface Topic {
   score: number;
   confidence: number;
   source?: 'ai' | 'manual';
+  assignedSmeId?: string;
+  assignedSmeName?: string;
   breakdown: {
     strategicRelevance: { score: number; evidence: string };
     audienceIcpUsefulness: { score: number; evidence: string };
@@ -36,8 +39,10 @@ interface Topic {
 function TopicsContent() {
   const searchParams = useSearchParams();
   const strategyId = searchParams?.get('strategyId');
+  const { workspaceId } = useWorkspace();
 
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [smes, setSmes] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -45,6 +50,11 @@ function TopicsContent() {
   const [approvedTopics, setApprovedTopics] = useState<Set<string>>(new Set());
   const [topicsWithArticles, setTopicsWithArticles] = useState<Set<string>>(new Set());
   const [topicToArticleMap, setTopicToArticleMap] = useState<Map<string, string>>(new Map());
+
+  // SME assignment state
+  const [showSmeAssignmentModal, setShowSmeAssignmentModal] = useState(false);
+  const [topicForSmeAssignment, setTopicForSmeAssignment] = useState<Topic | null>(null);
+  const [selectedSmeId, setSelectedSmeId] = useState<string>('');
 
   // Topic creation form state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -186,6 +196,17 @@ function TopicsContent() {
         // If API fails, continue with localStorage data
         console.log('API unavailable, using localStorage');
       }
+
+      // Load SMEs for this workspace
+      try {
+        const smeResponse = await fetch(`/api/sme?workspaceId=${workspaceId}`);
+        if (smeResponse.ok) {
+          const smeData = await smeResponse.json();
+          setSmes(smeData.smes.map((s: any) => ({ id: s.id, name: s.name })));
+        }
+      } catch (smeErr) {
+        console.log('Failed to load SMEs');
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -193,18 +214,58 @@ function TopicsContent() {
     }
   };
 
-  const handleApproveTopic = (topicId: string) => {
+  const handleApproveTopic = (topic: Topic) => {
+    if (!approvedTopics.has(topic.id)) {
+      // Show SME assignment modal when approving
+      setTopicForSmeAssignment(topic);
+      setSelectedSmeId(topic.assignedSmeId || '');
+      setShowSmeAssignmentModal(true);
+    } else {
+      // Unapprove
+      setApprovedTopics((prev) => {
+        const updated = new Set(prev);
+        updated.delete(topic.id);
+        localStorage.setItem(`approvals_${strategyId}`, JSON.stringify(Array.from(updated)));
+        return updated;
+      });
+    }
+  };
+
+  const handleAssignSme = () => {
+    if (!topicForSmeAssignment) return;
+
+    const selectedSme = smes.find((s) => s.id === selectedSmeId);
+    const updatedTopic = {
+      ...topicForSmeAssignment,
+      assignedSmeId: selectedSmeId,
+      assignedSmeName: selectedSme?.name,
+    };
+
+    // Update topic in state
+    setTopics((prev) =>
+      prev.map((t) => (t.id === updatedTopic.id ? updatedTopic : t))
+    );
+
+    // Update localStorage
+    const cachedTopics = localStorage.getItem('topics') || '[]';
+    const parsed = JSON.parse(cachedTopics);
+    const updated = parsed.map((t: Topic) =>
+      t.id === updatedTopic.id ? updatedTopic : t
+    );
+    localStorage.setItem('topics', JSON.stringify(updated));
+
+    // Mark as approved
     setApprovedTopics((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(topicId)) {
-        updated.delete(topicId);
-      } else {
-        updated.add(topicId);
-      }
-      // Save to localStorage
-      localStorage.setItem(`approvals_${strategyId}`, JSON.stringify(Array.from(updated)));
-      return updated;
+      const newSet = new Set(prev);
+      newSet.add(updatedTopic.id);
+      localStorage.setItem(`approvals_${strategyId}`, JSON.stringify(Array.from(newSet)));
+      return newSet;
     });
+
+    setShowSmeAssignmentModal(false);
+    setTopicForSmeAssignment(null);
+    setSelectedSmeId('');
+    setSuccess(`Topic approved and assigned to ${selectedSme?.name || 'SME'}`);
   };
 
   const handleCreateTopic = async (e: React.FormEvent) => {
@@ -1093,6 +1154,13 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     </div>
                   )}
 
+                  {/* Assigned SME */}
+                  {topic.assignedSmeName && (
+                    <div className="mt-2 bg-green-50 border border-green-200 rounded p-2">
+                      <div className="text-xs font-medium text-green-900">👤 Assigned SME: {topic.assignedSmeName}</div>
+                    </div>
+                  )}
+
                   {/* Recommended SMEs */}
                   {topic.recommendedSmes && topic.recommendedSmes.length > 0 && (
                     <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2">
@@ -1118,7 +1186,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                             window.location.href = `/articles/${articleId}/editor?strategyId=${strategyId}`;
                           }
                         } else {
-                          handleApproveTopic(topic.id);
+                          handleApproveTopic(topic);
                         }
                       }}
                       className={`text-sm font-medium px-4 py-2 rounded transition-all ${topicsWithArticles.has(topic.id)
@@ -1390,6 +1458,61 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   ) : (
                     '🗑️ Delete'
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SME Assignment Modal */}
+        {showSmeAssignmentModal && topicForSmeAssignment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Assign SME to Topic</h3>
+              <p className="text-slate-600 mb-4">
+                <strong>{topicForSmeAssignment.title}</strong>
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-900 mb-2">
+                  Select Subject Matter Expert
+                </label>
+                <select
+                  value={selectedSmeId}
+                  onChange={(e) => setSelectedSmeId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-signal"
+                >
+                  <option value="">-- Choose an SME or Skip --</option>
+                  {smes.map((sme) => (
+                    <option key={sme.id} value={sme.id}>
+                      {sme.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {smes.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4 text-xs text-yellow-800">
+                  No SMEs available. <a href="/sme" className="font-medium text-signal hover:underline">Create one first →</a>
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowSmeAssignmentModal(false);
+                    setTopicForSmeAssignment(null);
+                    setSelectedSmeId('');
+                  }}
+                  className="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignSme}
+                  className="px-4 py-2 rounded bg-signal text-white hover:bg-blue-700 transition-all"
+                >
+                  ✓ Approve & Assign
                 </button>
               </div>
             </div>
