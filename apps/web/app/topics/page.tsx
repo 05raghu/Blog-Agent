@@ -590,7 +590,8 @@ function TopicsContent() {
           title: topic.title,
           brief: brief || 'Brief to be determined',
           outline: '',
-          assignedSME: null,
+          assignedSmeId: topic.assignedSmeId || null,
+          assignedSmeName: topic.assignedSmeName || null,
         }),
       });
 

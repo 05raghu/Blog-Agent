@@ -2,11 +2,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { articleStore } from './store';
+import { getSMEsByWorkspace, updateSME } from '@/lib/sme-store';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topicId, strategyId, title, brief, outline, assignedSME } = body;
+    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, workspaceId = 'default-workspace' } = body;
 
     if (!topicId || !strategyId) {
       return NextResponse.json(
@@ -49,7 +50,8 @@ export async function POST(request: NextRequest) {
       angle: '', // Will be set during brief editing
       targetAudience: '', // Will be set during brief editing
       status: 'NOT_STARTED',
-      assignedSME: assignedSME || null,
+      assignedSmeId: assignedSmeId || null,
+      assignedSmeName: assignedSmeName || null,
       owner: 'system', // TODO: use actual user from auth
       plannedPublishDate: null,
       wordCount: estimatedWordCount,
@@ -62,6 +64,28 @@ export async function POST(request: NextRequest) {
     articleStore.set(articleId, article);
     console.log(`[API] Created article ${articleId}. Store now has ${articleStore.size} articles.`);
 
+    // Track SME contribution (increment pastContributions)
+    if (assignedSmeId) {
+      try {
+        const smes = getSMEsByWorkspace(workspaceId);
+        const sme = smes.find((s) => s.id === assignedSmeId);
+
+        if (sme) {
+          const currentCount = (sme.pastContributions?.length || 0);
+          const updatedContributions = [...(sme.pastContributions || []), articleId];
+
+          updateSME(workspaceId, assignedSmeId, {
+            pastContributions: updatedContributions,
+          });
+
+          console.log(`[API] Incremented ${sme.name} contributions: ${currentCount} → ${currentCount + 1}`);
+        }
+      } catch (smeErr) {
+        // Log but don't fail article creation if SME tracking fails
+        console.error('[API] Failed to track SME contribution:', smeErr);
+      }
+    }
+
     return NextResponse.json({
       id: article.id,
       contentId: article.contentId,
@@ -69,6 +93,8 @@ export async function POST(request: NextRequest) {
       status: article.status,
       topicId: article.topicId,
       strategyId: article.strategyId,
+      assignedSmeId: article.assignedSmeId,
+      assignedSmeName: article.assignedSmeName,
       createdAt: article.createdAt,
     });
   } catch (error) {
