@@ -44,9 +44,18 @@ export function useWorkspace() {
       // Get initial session
       supabase.auth.getSession().then(({ data: { session } }) => {
         setUser(session?.user ?? null);
+
         if (!session) {
-          // Allow dev mode without auth - don't redirect yet
-          console.log('[Auth] No session, using default workspace');
+          // Only redirect if we're not already on auth page
+          const isAuthPage = window.location.pathname.startsWith('/auth');
+          if (!isAuthPage) {
+            console.log('[Auth] No session, redirecting to login');
+            router.push('/auth/login');
+          } else {
+            console.log('[Auth] On auth page, no redirect needed');
+          }
+        } else {
+          console.log('[Auth] Session found for', session.user.email);
         }
         setLoading(false);
       }).catch((err) => {
@@ -58,6 +67,7 @@ export function useWorkspace() {
       supabase.auth.onAuthStateChange(
         (_event: AuthChangeEvent, session: Session | null) => {
           setUser(session?.user ?? null);
+          console.log('[Auth] Auth state changed:', _event, session?.user?.email);
         }
       );
     } catch (err) {
