@@ -456,7 +456,10 @@ function BriefingContent() {
           <Link href="/topics" className="btn-secondary text-sm">
             ← Back to Topics
           </Link>
-          <Link href={`/sme?strategyId=default-strategy`} className="btn-secondary text-sm">
+          <Link
+            href={topics.length > 0 && topics[0].strategyId ? `/sme?strategyId=${topics[0].strategyId}` : '/sme'}
+            className="btn-secondary text-sm"
+          >
             → Manage SMEs
           </Link>
         </div>
