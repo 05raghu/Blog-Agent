@@ -1,8 +1,10 @@
-// Workspace context - provides workspaceId based on user/auth
-// For now: hardcoded to 'default-workspace'
-// TODO: Derive from Supabase Auth user context
+// Workspace context - derives workspaceId from Supabase Auth user
+// Maps user.id to workspace for multi-tenant isolation
 
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from './supabase-client';
+import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 export interface WorkspaceUser {
   id: string;
@@ -11,28 +13,69 @@ export interface WorkspaceUser {
   role: 'admin' | 'marketer' | 'founder' | 'sme';
 }
 
-// For now, mock user - in future will come from Supabase Auth
-const MOCK_USER: WorkspaceUser = {
-  id: 'user_default',
-  email: 'user@codewave.com',
-  workspaceId: 'default-workspace',
-  role: 'marketer',
-};
+// Derive workspaceId from user
+// For V1: use 'default-workspace' for all users
+// For V2: create workspace per user/org and store mapping in DB
+export function deriveWorkspaceId(user: User | null): string {
+  if (!user) return 'default-workspace';
+  // TODO: Query Workspace table to get user's workspaceId
+  // For now: all users share default workspace
+  return 'default-workspace';
+}
+
+// Get default role for new users
+function getDefaultRole(email: string): WorkspaceUser['role'] {
+  // If email matches pattern, assign admin role
+  if (email?.endsWith('@codewave.com')) {
+    return 'marketer'; // Codewave team defaults to marketer
+  }
+  return 'marketer'; // Default role
+}
 
 export function useWorkspace() {
-  // In future: fetch from Supabase Auth context
-  const user = MOCK_USER;
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        // Redirect to login if no session
+        router.push('/auth/login');
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription?.unsubscribe();
+  }, [router]);
+
+  const workspaceId = deriveWorkspaceId(user);
+  const role = getDefaultRole(user?.email || '');
 
   return {
-    workspaceId: user.workspaceId,
-    userId: user.id,
-    userEmail: user.email,
-    role: user.role,
+    user,
+    workspaceId,
+    userId: user?.id,
+    userEmail: user?.email,
+    role,
+    loading,
+    isAuthenticated: !!user,
   };
 }
 
 export function getWorkspaceId(): string {
-  // Server-side: extract from request context
-  // For now: return default
-  return MOCK_USER.workspaceId;
+  // Server-side use only - requires auth context
+  // For server components, pass workspaceId explicitly
+  return 'default-workspace';
 }
