@@ -3,10 +3,11 @@
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 
 interface SMEProfile {
   id: string;
-  strategyId: string;
+  workspaceId: string;
   name: string;
   email: string;
   expertise: string[];
@@ -23,7 +24,7 @@ interface Topic {
 
 interface BriefingSession {
   id: string;
-  strategyId: string; // Add strategy scoping
+  workspaceId: string;
   topicId: string;
   topicTitle: string;
   smeId: string;
@@ -69,7 +70,8 @@ const DEFAULT_QUESTIONS = [
 
 function BriefingContent() {
   const searchParams = useSearchParams();
-  const strategyId = searchParams?.get('strategyId');
+  const { workspaceId, loading: wsLoading } = useWorkspace();
+  const sessionId = searchParams?.get('sessionId');
   const topicId = searchParams?.get('topicId');
   const smeId = searchParams?.get('smeId');
 
@@ -90,7 +92,7 @@ function BriefingContent() {
 
   useEffect(() => {
     loadData();
-  }, [strategyId]);
+  }, [workspaceId]);
 
   const loadData = async () => {
     try {
@@ -102,14 +104,14 @@ function BriefingContent() {
 
       if (stored) {
         const allSessions = JSON.parse(stored);
-        sessionsData = allSessions.filter((s: BriefingSession) => s.strategyId === (strategyId || 'default-strategy'));
+        sessionsData = allSessions.filter((s: BriefingSession) => s.workspaceId === workspaceId);
       }
 
       setSessions(sessionsData);
 
       // Also try API to sync (in-memory store may have more recent data)
       try {
-        const apiResponse = await fetch(`/api/briefing?strategyId=${strategyId}`);
+        const apiResponse = await fetch(`/api/briefing?workspaceId=${workspaceId}`);
         if (apiResponse.ok) {
           const data = await apiResponse.json();
           const apiSessions = data.sessions || [];
@@ -120,7 +122,7 @@ function BriefingContent() {
             const allSessions = localStorage.getItem('briefing_sessions')
               ? JSON.parse(localStorage.getItem('briefing_sessions') || '[]')
               : [];
-            const filtered = allSessions.filter((s: BriefingSession) => s.strategyId !== strategyId);
+            const filtered = allSessions.filter((s: BriefingSession) => s.workspaceId !== workspaceId);
             const updated = [...filtered, ...apiSessions];
             localStorage.setItem('briefing_sessions', JSON.stringify(updated));
           }
@@ -133,14 +135,14 @@ function BriefingContent() {
       if (topicsStored) {
         const allTopics = JSON.parse(topicsStored);
         // Filter by strategyId
-        const filtered = allTopics.filter((t: Topic) => t.strategyId === (strategyId || 'default-strategy'));
+        const filtered = allTopics.filter((t: Topic) => t.strategyId === (workspaceId || 'default-strategy'));
         setTopics(filtered);
       }
       const smesStored = localStorage.getItem('sme_profiles');
       if (smesStored) {
         const allSMEs = JSON.parse(smesStored);
-        // Filter by strategyId
-        const filtered = allSMEs.filter((s: SMEProfile) => s.strategyId === (strategyId || 'default-strategy'));
+        // Filter by workspaceId
+        const filtered = allSMEs.filter((s: SMEProfile) => s.workspaceId === workspaceId);
         setSmes(filtered);
       }
 
@@ -179,7 +181,7 @@ function BriefingContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          strategyId: strategyId || 'default-strategy',
+          workspaceId: workspaceId || 'default-strategy',
           session: sessionData,
           action: 'create',
         }),
@@ -226,7 +228,7 @@ function BriefingContent() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          strategyId: strategyId || 'default-strategy',
+          workspaceId: workspaceId || 'default-strategy',
           sessionId: completed.id,
           session: completed,
         }),
@@ -263,7 +265,7 @@ function BriefingContent() {
       setIsDeleting(true);
       // Delete via API
       const response = await fetch(
-        `/api/briefing?strategyId=${strategyId}&sessionId=${sessionToDelete.id}`,
+        `/api/briefing?workspaceId=${workspaceId}&sessionId=${sessionToDelete.id}`,
         { method: 'DELETE' }
       );
 
@@ -452,10 +454,10 @@ function BriefingContent() {
 
         {/* Navigation */}
         <div className="mb-6 flex gap-3">
-          <Link href={`/topics?strategyId=${strategyId}`} className="btn-secondary text-sm">
+          <Link href="/topics" className="btn-secondary text-sm">
             ← Back to Topics
           </Link>
-          <Link href={`/sme?strategyId=${strategyId}`} className="btn-secondary text-sm">
+          <Link href="/sme" className="btn-secondary text-sm">
             → Manage SMEs
           </Link>
         </div>

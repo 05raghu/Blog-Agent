@@ -1,25 +1,24 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 
 interface SMEProfile {
   id: string;
-  strategyId: string; // Add strategy scoping
+  workspaceId: string;
   name: string;
   email: string;
-  expertise: string[]; // e.g., ["API Design", "Backend Architecture", "Performance"]
+  expertise: string[];
   biography?: string;
-  capacityHoursPerMonth: number; // Available hours
-  hoursUsed?: number; // Hours already allocated
-  pastContributions?: string[]; // Articles they've been interviewed for
+  capacityHoursPerMonth: number;
+  hoursUsed?: number;
+  pastContributions?: string[];
   createdAt: string;
 }
 
 function SMEContent() {
-  const searchParams = useSearchParams();
-  const strategyId = searchParams?.get('strategyId');
+  const { workspaceId, loading: wsLoading } = useWorkspace();
 
   const [smes, setSmes] = useState<SMEProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,45 +36,21 @@ function SMEContent() {
   });
 
   useEffect(() => {
-    fetchSMEs();
-  }, [strategyId]);
+    if (!wsLoading && workspaceId) {
+      fetchSMEs();
+    }
+  }, [workspaceId, wsLoading]);
 
   const fetchSMEs = async () => {
     try {
       setLoading(true);
+      const apiResponse = await fetch(`/api/sme?workspaceId=${workspaceId}`);
 
-      // Load from localStorage (source of truth)
-      const stored = localStorage.getItem('sme_profiles');
-      let smesData: SMEProfile[] = [];
-
-      if (stored) {
-        const allSMEs = JSON.parse(stored);
-        smesData = allSMEs.filter((s: SMEProfile) => s.strategyId === strategyId);
-      }
-
-      setSmes(smesData);
-
-      // Also try API to sync (in-memory store may have more recent data)
-      try {
-        const apiResponse = await fetch(`/api/sme?strategyId=${strategyId}`);
-        if (apiResponse.ok) {
-          const data = await apiResponse.json();
-          const apiSmes = data.smes || [];
-
-          // If API has data, use it and update localStorage
-          if (apiSmes.length > 0) {
-            setSmes(apiSmes);
-            const allSMEs = localStorage.getItem('sme_profiles')
-              ? JSON.parse(localStorage.getItem('sme_profiles') || '[]')
-              : [];
-            const filtered = allSMEs.filter((s: SMEProfile) => s.strategyId !== strategyId);
-            const updated = [...filtered, ...apiSmes];
-            localStorage.setItem('sme_profiles', JSON.stringify(updated));
-          }
-        }
-      } catch (apiErr) {
-        // If API fails, continue with localStorage data
-        console.log('API unavailable, using localStorage');
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        setSmes(data.smes || []);
+      } else {
+        setError('Failed to load SME profiles');
       }
     } catch (err) {
       setError('Failed to load SME profiles');
@@ -114,7 +89,7 @@ function SMEContent() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            strategyId: strategyId || 'default-strategy',
+            workspaceId,
             smeId: editingId,
             sme: {
               ...smeData,
@@ -129,7 +104,6 @@ function SMEContent() {
           const result = await response.json();
           const updated = smes.map((s) => (s.id === editingId ? result.sme : s));
           setSmes(updated);
-          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       } else {
         // Create via API
@@ -137,9 +111,8 @@ function SMEContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            strategyId: strategyId || 'default-strategy',
+            workspaceId,
             sme: smeData,
-            action: 'create',
           }),
         });
 
@@ -147,7 +120,6 @@ function SMEContent() {
           const result = await response.json();
           const updated = [result.sme, ...smes];
           setSmes(updated);
-          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       }
 
@@ -171,14 +143,13 @@ function SMEContent() {
   const handleDeleteSME = async (id: string) => {
     if (confirm('Delete this SME profile?')) {
       try {
-        const response = await fetch(`/api/sme?strategyId=${strategyId}&smeId=${id}`, {
+        const response = await fetch(`/api/sme?workspaceId=${workspaceId}&smeId=${id}`, {
           method: 'DELETE',
         });
 
         if (response.ok) {
           const updated = smes.filter((s) => s.id !== id);
           setSmes(updated);
-          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       } catch (err) {
         console.error('Failed to delete SME:', err);
@@ -198,7 +169,7 @@ function SMEContent() {
     setShowForm(true);
   };
 
-  if (loading) {
+  if (wsLoading || loading) {
     return (
       <div className="min-h-screen bg-parchment p-8">
         <div className="max-w-6xl mx-auto text-center py-12">
@@ -219,7 +190,7 @@ function SMEContent() {
 
         {/* Navigation */}
         <div className="mb-6 flex gap-3">
-          <Link href={`/topics?strategyId=${strategyId}`} className="btn-secondary text-sm">
+          <Link href="/topics" className="btn-secondary text-sm">
             ← Back to Topics
           </Link>
         </div>
