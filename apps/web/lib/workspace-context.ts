@@ -38,26 +38,32 @@ export function useWorkspace() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        // Redirect to login if no session
-        router.push('/auth/login');
-      }
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
+      // Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
         setUser(session?.user ?? null);
-      }
-    );
+        if (!session) {
+          // Allow dev mode without auth - don't redirect yet
+          console.log('[Auth] No session, using default workspace');
+        }
+        setLoading(false);
+      }).catch((err) => {
+        console.log('[Auth] Supabase not configured, using demo mode', err.message);
+        setLoading(false);
+      });
 
-    return () => subscription?.unsubscribe();
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange(
+        (_event: AuthChangeEvent, session: Session | null) => {
+          setUser(session?.user ?? null);
+        }
+      );
+    } catch (err) {
+      console.log('[Auth] Supabase initialization failed, using demo mode');
+      setLoading(false);
+    }
   }, [router]);
 
   const workspaceId = deriveWorkspaceId(user);
