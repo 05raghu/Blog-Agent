@@ -168,8 +168,10 @@ function BriefingContent() {
       const topicsStored = localStorage.getItem('topics');
       if (topicsStored) {
         const allTopics = JSON.parse(topicsStored);
-        // Filter by strategyId
-        const filtered = allTopics.filter((t: Topic) => t.strategyId === (workspaceId || 'default-strategy'));
+        // Filter by strategyId from URL
+        const filtered = strategyId
+          ? allTopics.filter((t: Topic) => t.strategyId === strategyId)
+          : [];
         setTopics(filtered);
       }
       const smesStored = localStorage.getItem('sme_profiles');
