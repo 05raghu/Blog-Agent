@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
 
@@ -19,9 +19,29 @@ interface SMEProfile {
 }
 
 function SMEContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const strategyId = searchParams?.get('strategyId');
-  const { workspaceId, loading: wsLoading } = useWorkspace();
+  const { workspaceId, user, loading: wsLoading } = useWorkspace();
+
+  useEffect(() => {
+    if (!wsLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [wsLoading, user, router]);
+
+  if (wsLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [smes, setSmes] = useState<SMEProfile[]>([]);
   const [loading, setLoading] = useState(true);

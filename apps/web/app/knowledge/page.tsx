@@ -48,8 +48,27 @@ const EditIcon = () => (
 function KnowledgeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { workspaceId, role } = useWorkspace();
+  const { workspaceId, role, user, loading: authLoading } = useWorkspace();
   const strategyId = searchParams?.get('strategyId');
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);

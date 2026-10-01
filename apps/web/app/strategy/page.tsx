@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 
 interface Strategy {
   id: string;
@@ -12,13 +14,31 @@ interface Strategy {
 }
 
 export default function StrategyPage() {
+  const router = useRouter();
+  const { user, loading } = useWorkspace();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loadingStrategies, setLoadingStrategies] = useState(true);
 
-  // Load all strategies on mount
   useEffect(() => {
-    fetchStrategies();
-  }, []);
+    if (!loading && !user) {
+      router.push('/auth/login');
+    } else if (!loading && user) {
+      fetchStrategies();
+    }
+  }, [loading, user, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const fetchStrategies = async () => {
     try {

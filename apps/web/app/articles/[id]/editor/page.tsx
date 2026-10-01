@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
@@ -46,19 +46,39 @@ interface Article {
 }
 
 export default function ArticleEditorPage() {
+  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const id = params.id as string;
   const strategyId = searchParams?.get('strategyId') || '';
+
+  // Get workspaceId from context
+  const { workspaceId: contextWorkspaceId, user, loading: authLoading } = useWorkspace();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
-
-  // Get workspaceId from context
-  const { workspaceId: contextWorkspaceId } = useWorkspace();
 
   // Editor state
   const [brief, setBrief] = useState('');

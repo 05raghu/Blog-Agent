@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
 
@@ -69,8 +69,9 @@ const DEFAULT_QUESTIONS = [
 ];
 
 function BriefingContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { workspaceId } = useWorkspace();
+  const { workspaceId, user, loading: authLoading } = useWorkspace();
   const topicId = searchParams?.get('topicId');
   const smeId = searchParams?.get('smeId');
 
@@ -81,6 +82,25 @@ function BriefingContent() {
   const [smes, setSmes] = useState<SMEProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [showStartForm, setShowStartForm] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);

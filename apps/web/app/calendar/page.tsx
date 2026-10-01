@@ -2,8 +2,9 @@
 
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useWorkspace } from '@/lib/workspace-context';
 import { STAGE_COLORS, STAGE_LABELS } from '@blog-agent/domain';
 
 interface Article {
@@ -20,8 +21,29 @@ interface Article {
 }
 
 function CalendarContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useWorkspace();
   const urlStrategyId = searchParams?.get('strategyId') || '';
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const [strategyId, setStrategyId] = useState(urlStrategyId);
   const [articles, setArticles] = useState<Article[]>([]);
