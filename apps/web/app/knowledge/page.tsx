@@ -652,19 +652,6 @@ function KnowledgeContent() {
     }
   };
 
-  const getClaims = async (sourceId: string) => {
-    try {
-      const res = await fetch(`/api/knowledge/claims?sourceId=${sourceId}`);
-      if (res.ok) {
-        const data = await res.json();
-        return data.claims || [];
-      }
-    } catch (err) {
-      console.error('Failed to fetch claims:', err);
-    }
-    return [];
-  };
-
   const deleteSource = async (sourceId: string) => {
     try {
       setDeleteError(''); // Reset error when opening modal

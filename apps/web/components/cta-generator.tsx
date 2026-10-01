@@ -22,8 +22,8 @@ interface CTAGeneratorProps {
 export function CTAGenerator({
   title,
   content,
-  brief,
-  targetAudience,
+  brief: _brief,
+  targetAudience: _targetAudience,
   onGenerate,
   onSelect,
   isLoading = false,

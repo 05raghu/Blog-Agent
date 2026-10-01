@@ -27,7 +27,7 @@ export function CrosslinkManager({
   articleId,
   title,
   content,
-  strategyId,
+  strategyId: _strategyId,
   onSuggest,
   onContentUpdate,
   isLoading = false,
