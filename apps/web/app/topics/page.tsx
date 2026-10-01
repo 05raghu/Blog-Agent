@@ -91,12 +91,47 @@ function TopicsContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteOption, setDeleteOption] = useState<'topic-only' | 'with-articles'>('topic-only');
 
+  // All hooks must come BEFORE conditional returns
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login');
     }
   }, [authLoading, user, router]);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      console.log('[ERROR]', error);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
+  // Show success toast and auto-clear
+  useEffect(() => {
+    if (!success) return;
+
+    console.log('[SUCCESS]', success);
+    const timer = setTimeout(() => setSuccess(''), 3000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (!strategyId) {
+      setError('No strategy ID provided');
+      setLoading(false);
+      return;
+    }
+
+    // Restore approval state from localStorage
+    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
+    if (savedApprovals) {
+      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
+    }
+
+    fetchTopics();
+  }, [strategyId]);
+
+  // NOW we can have conditional returns
   if (authLoading) {
     return (
       <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -193,39 +228,6 @@ function TopicsContent() {
       setLoading(false);
     }
   };
-
-  // Auto-scroll to top when error appears
-  useEffect(() => {
-    if (error) {
-      console.log('[ERROR]', error);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [error]);
-
-  // Show success toast and auto-clear
-  useEffect(() => {
-    if (!success) return;
-
-    console.log('[SUCCESS]', success);
-    const timer = setTimeout(() => setSuccess(''), 3000);
-    return () => clearTimeout(timer);
-  }, [success]);
-
-  useEffect(() => {
-    if (!strategyId) {
-      setError('No strategy ID provided');
-      setLoading(false);
-      return;
-    }
-
-    // Restore approval state from localStorage
-    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
-    if (savedApprovals) {
-      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
-    }
-
-    fetchTopics();
-  }, [strategyId]);
 
   const handleApproveTopic = async (topic: Topic) => {
     if (!approvedTopics.has(topic.id)) {
