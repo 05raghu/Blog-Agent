@@ -72,6 +72,7 @@ function BriefingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { workspaceId, user, loading: authLoading } = useWorkspace();
+  const strategyId = searchParams?.get('strategyId');
   const topicId = searchParams?.get('topicId');
   const smeId = searchParams?.get('smeId');
 
@@ -474,13 +475,13 @@ function BriefingContent() {
         {/* Navigation */}
         <div className="mb-6 flex gap-3">
           <Link
-            href={topics.length > 0 && topics[0].strategyId ? `/topics?strategyId=${topics[0].strategyId}` : '/topics'}
+            href={strategyId ? `/topics?strategyId=${strategyId}` : '/topics'}
             className="btn-secondary text-sm"
           >
             ← Back to Topics
           </Link>
           <Link
-            href={topics.length > 0 && topics[0].strategyId ? `/sme?strategyId=${topics[0].strategyId}` : '/sme'}
+            href={strategyId ? `/sme?strategyId=${strategyId}` : '/sme'}
             className="btn-secondary text-sm"
           >
             → Manage SMEs
