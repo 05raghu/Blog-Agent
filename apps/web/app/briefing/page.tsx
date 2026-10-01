@@ -473,7 +473,10 @@ function BriefingContent() {
 
         {/* Navigation */}
         <div className="mb-6 flex gap-3">
-          <Link href="/topics" className="btn-secondary text-sm">
+          <Link
+            href={topics.length > 0 && topics[0].strategyId ? `/topics?strategyId=${topics[0].strategyId}` : '/topics'}
+            className="btn-secondary text-sm"
+          >
             ← Back to Topics
           </Link>
           <Link
