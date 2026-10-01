@@ -91,60 +91,7 @@ function TopicsContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteOption, setDeleteOption] = useState<'topic-only' | 'with-articles'>('topic-only');
 
-  // All hooks must come BEFORE conditional returns
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [authLoading, user, router]);
-
-  // Auto-scroll to top when error appears
-  useEffect(() => {
-    if (error) {
-      console.log('[ERROR]', error);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [error]);
-
-  // Show success toast and auto-clear
-  useEffect(() => {
-    if (!success) return;
-
-    console.log('[SUCCESS]', success);
-    const timer = setTimeout(() => setSuccess(''), 3000);
-    return () => clearTimeout(timer);
-  }, [success]);
-
-  useEffect(() => {
-    if (!strategyId) {
-      setError('No strategy ID provided');
-      setLoading(false);
-      return;
-    }
-
-    // Restore approval state from localStorage
-    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
-    if (savedApprovals) {
-      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
-    }
-
-    fetchTopics();
-  }, [strategyId]);
-
-  // NOW we can have conditional returns
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
+  // Function must be defined before useEffect that calls it
   const fetchTopics = async () => {
     try {
       setLoading(true);
@@ -228,6 +175,60 @@ function TopicsContent() {
       setLoading(false);
     }
   };
+
+  // All hooks must come BEFORE conditional returns
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      console.log('[ERROR]', error);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
+  // Show success toast and auto-clear
+  useEffect(() => {
+    if (!success) return;
+
+    console.log('[SUCCESS]', success);
+    const timer = setTimeout(() => setSuccess(''), 3000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (!strategyId) {
+      setError('No strategy ID provided');
+      setLoading(false);
+      return;
+    }
+
+    // Restore approval state from localStorage
+    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
+    if (savedApprovals) {
+      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
+    }
+
+    fetchTopics();
+  }, [strategyId]);
+
+  // NOW we can have conditional returns
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const handleApproveTopic = async (topic: Topic) => {
     if (!approvedTopics.has(topic.id)) {

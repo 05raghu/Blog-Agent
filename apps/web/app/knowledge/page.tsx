@@ -51,25 +51,7 @@ function KnowledgeContent() {
   const { workspaceId, user, loading: authLoading } = useWorkspace();
   const strategyId = searchParams?.get('strategyId');
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [authLoading, user, router]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
+  // All hooks must be declared before any conditional returns
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -134,6 +116,25 @@ function KnowledgeContent() {
   const [showBlockedFeedsConfig, setShowBlockedFeedsConfig] = useState(false);
   const [blockedFeeds, setBlockedFeeds] = useState<string[]>(['/feeds/blog/']); // Default
   const [blockedFeedsInput, setBlockedFeedsInput] = useState('/feeds/blog/'); // For textarea
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   useEffect(() => {
     if (strategyId) {

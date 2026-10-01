@@ -75,6 +75,7 @@ function BriefingContent() {
   const topicId = searchParams?.get('topicId');
   const smeId = searchParams?.get('smeId');
 
+  // All hooks must be declared before any conditional returns
   const [sessions, setSessions] = useState<BriefingSession[]>([]);
   const [currentSession, setCurrentSession] = useState<BriefingSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -82,6 +83,12 @@ function BriefingContent() {
   const [smes, setSmes] = useState<SMEProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showStartForm, setShowStartForm] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [selectedSME, setSelectedSME] = useState<SMEProfile | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<BriefingSession | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -101,13 +108,6 @@ function BriefingContent() {
   }
 
   if (!user) return null;
-
-  const [showStartForm, setShowStartForm] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [selectedSME, setSelectedSME] = useState<SMEProfile | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [sessionToDelete, setSessionToDelete] = useState<BriefingSession | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadData();

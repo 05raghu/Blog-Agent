@@ -55,25 +55,7 @@ export default function ArticleEditorPage() {
   // Get workspaceId from context
   const { workspaceId: contextWorkspaceId, user, loading: authLoading } = useWorkspace();
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [authLoading, user, router]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
+  // All hooks must be declared before any conditional returns
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -117,6 +99,25 @@ export default function ArticleEditorPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'sources'>('brief');
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   // Initialize selected sources when article loads or when Sources tab is accessed
   useEffect(() => {

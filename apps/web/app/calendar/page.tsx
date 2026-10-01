@@ -26,6 +26,12 @@ function CalendarContent() {
   const { user, loading: authLoading } = useWorkspace();
   const urlStrategyId = searchParams?.get('strategyId') || '';
 
+  // All hooks must be declared before any conditional returns
+  const [strategyId, setStrategyId] = useState(urlStrategyId);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(!!urlStrategyId); // Start loading if URL has strategyId
+  const [error, setError] = useState('');
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login');
@@ -44,11 +50,6 @@ function CalendarContent() {
   }
 
   if (!user) return null;
-
-  const [strategyId, setStrategyId] = useState(urlStrategyId);
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(!!urlStrategyId); // Start loading if URL has strategyId
-  const [error, setError] = useState('');
 
   useEffect(() => {
     // Update strategyId if URL param changes
