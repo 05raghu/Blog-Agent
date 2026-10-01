@@ -27,7 +27,7 @@ interface SEOAnalyzerProps {
 export function SEOAnalyzer({
   title,
   content,
-  brief,
+  brief: _brief,
   onAnalyze,
   isLoading = false,
   analysis,

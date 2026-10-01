@@ -232,7 +232,7 @@ export function PublishReadiness({
               <p className="text-2xl font-bold">{score}%</p>
             </div>
             <ul className="space-y-1">
-              {details.map((detail, idx) => (
+              {details.map((detail: string, idx: number) => (
                 <li key={idx} className="text-xs">
                   {detail}
                 </li>
