@@ -90,28 +90,42 @@ function BriefingContent() {
   const [sessionToDelete, setSessionToDelete] = useState<BriefingSession | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
+  const startNewSession = async (topic: Topic, sme: SMEProfile) => {
+    try {
+      const sessionData = {
+        topicId: topic.id,
+        topicTitle: topic.title,
+        smeId: sme.id,
+        smeName: sme.name,
+        status: 'in_progress' as const,
+        questions: DEFAULT_QUESTIONS,
+        responses: {},
+        startedAt: new Date().toISOString(),
+      };
+
+      // Create via API
+      const response = await fetch('/api/briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId: workspaceId || 'default-strategy',
+          session: sessionData,
+          action: 'create',
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const newSession = result.session;
+        setCurrentSession(newSession);
+        const updated = [newSession, ...sessions];
+        setSessions(updated);
+        localStorage.setItem('briefing_sessions', JSON.stringify(updated));
+      }
+    } catch (err) {
+      setError('Failed to create briefing session');
     }
-  }, [authLoading, user, router]);
-
-  useEffect(() => {
-    loadData();
-  }, [workspaceId]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  };
 
   const loadData = async () => {
     try {
@@ -182,42 +196,28 @@ function BriefingContent() {
     }
   };
 
-  const startNewSession = async (topic: Topic, sme: SMEProfile) => {
-    try {
-      const sessionData = {
-        topicId: topic.id,
-        topicTitle: topic.title,
-        smeId: sme.id,
-        smeName: sme.name,
-        status: 'in_progress' as const,
-        questions: DEFAULT_QUESTIONS,
-        responses: {},
-        startedAt: new Date().toISOString(),
-      };
-
-      // Create via API
-      const response = await fetch('/api/briefing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspaceId: workspaceId || 'default-strategy',
-          session: sessionData,
-          action: 'create',
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const newSession = result.session;
-        setCurrentSession(newSession);
-        const updated = [newSession, ...sessions];
-        setSessions(updated);
-        localStorage.setItem('briefing_sessions', JSON.stringify(updated));
-      }
-    } catch (err) {
-      setError('Failed to create briefing session');
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
     }
-  };
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    loadData();
+  }, [workspaceId]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const handleAnswerQuestion = (questionId: string, answer: string) => {
     if (!currentSession) return;
