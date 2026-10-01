@@ -106,19 +106,6 @@ export default function ArticleEditorPage() {
     }
   }, [authLoading, user, router]);
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-parchment flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
   // Initialize selected sources when article loads or when Sources tab is accessed
   useEffect(() => {
     if (article?.linkedSources && article.linkedSources.length > 0) {
@@ -146,6 +133,101 @@ export default function ArticleEditorPage() {
       }
     }
   }, [activeTab, strategyId, article?.linkedSources]);
+
+  // Show save status briefly
+  useEffect(() => {
+    if (!saveStatus) return;
+    const timer = setTimeout(() => setSaveStatus(null), 2000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
+
+  // Auto-save content when it changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (content && content !== article?.content) {
+        handleSave('content', content);
+      }
+    }, 2000); // Save 2 seconds after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [content]);
+
+  // Auto-save outline when it changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (outline && outline !== article?.outline) {
+        handleSave('outline', outline);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [outline]);
+
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (!error) return;
+    console.log('[ERROR]', error);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Auto-clear error after 5 seconds
+    const timer = setTimeout(() => setError(''), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  // Auto-save brief when it changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (brief && brief !== article?.brief) {
+        handleSave('brief', brief);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [brief]);
+
+  // Auto-analyze SEO when content is available
+  useEffect(() => {
+    if (activeTab === 'seo' && content && !seoAnalysis && !seoLoading) {
+      handleSEOAnalysis();
+    }
+  }, [activeTab, content]);
+
+  // Auto-suggest cross-links when tab is accessed
+  useEffect(() => {
+    if (activeTab === 'crosslinks' && content && suggestedLinks.length === 0 && !crosslinksLoading) {
+      handleSuggestLinks();
+    }
+  }, [activeTab, content]);
+
+  // Auto-generate CTAs when tab is accessed (only if no CTAs exist and no CTA selected)
+  useEffect(() => {
+    if (activeTab === 'cta' && content && ctas.length === 0 && !selectedCTA && !ctaLoading) {
+      handleGenerateCTA();
+    }
+  }, [activeTab, content, selectedCTA]);
+
+  // Auto-generate images when tab is accessed (only if no images exist and no image selected)
+  useEffect(() => {
+    if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
+      handleGenerateImages();
+    }
+  }, [activeTab, article?.title, selectedImage]);
+
+  useEffect(() => {
+    if (id) fetchArticle();
+  }, [id]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-parchment flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-slate-300 border-t-signal rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const fetchSources = async () => {
     try {
@@ -408,88 +490,6 @@ export default function ArticleEditorPage() {
       setSaving(false);
     }
   };
-
-  // Show save status briefly
-  useEffect(() => {
-    if (!saveStatus) return;
-    const timer = setTimeout(() => setSaveStatus(null), 2000);
-    return () => clearTimeout(timer);
-  }, [saveStatus]);
-
-  // Auto-save content when it changes (debounced)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (content && content !== article?.content) {
-        handleSave('content', content);
-      }
-    }, 2000); // Save 2 seconds after user stops typing
-
-    return () => clearTimeout(timer);
-  }, [content]);
-
-  // Auto-save outline when it changes (debounced)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (outline && outline !== article?.outline) {
-        handleSave('outline', outline);
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [outline]);
-
-  // Auto-scroll to top when error appears
-  useEffect(() => {
-    if (!error) return;
-    console.log('[ERROR]', error);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Auto-clear error after 5 seconds
-    const timer = setTimeout(() => setError(''), 5000);
-    return () => clearTimeout(timer);
-  }, [error]);
-
-  // Auto-save brief when it changes (debounced)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (brief && brief !== article?.brief) {
-        handleSave('brief', brief);
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [brief]);
-
-  // Auto-analyze SEO when content is available
-  useEffect(() => {
-    if (activeTab === 'seo' && content && !seoAnalysis && !seoLoading) {
-      handleSEOAnalysis();
-    }
-  }, [activeTab, content]);
-
-  // Auto-suggest cross-links when tab is accessed
-  useEffect(() => {
-    if (activeTab === 'crosslinks' && content && suggestedLinks.length === 0 && !crosslinksLoading) {
-      handleSuggestLinks();
-    }
-  }, [activeTab, content]);
-
-  // Auto-generate CTAs when tab is accessed (only if no CTAs exist and no CTA selected)
-  useEffect(() => {
-    if (activeTab === 'cta' && content && ctas.length === 0 && !selectedCTA && !ctaLoading) {
-      handleGenerateCTA();
-    }
-  }, [activeTab, content, selectedCTA]);
-
-  // Auto-generate images when tab is accessed (only if no images exist and no image selected)
-  useEffect(() => {
-    if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
-      handleGenerateImages();
-    }
-  }, [activeTab, article?.title, selectedImage]);
-
-  useEffect(() => {
-    if (id) fetchArticle();
-  }, [id]);
 
   const fetchArticle = async () => {
     try {

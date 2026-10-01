@@ -38,6 +38,14 @@ function CalendarContent() {
     }
   }, [authLoading, user, router]);
 
+  useEffect(() => {
+    // Update strategyId if URL param changes
+    if (urlStrategyId) {
+      setStrategyId(urlStrategyId);
+      fetchArticles(urlStrategyId);
+    }
+  }, [urlStrategyId]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -50,14 +58,6 @@ function CalendarContent() {
   }
 
   if (!user) return null;
-
-  useEffect(() => {
-    // Update strategyId if URL param changes
-    if (urlStrategyId) {
-      setStrategyId(urlStrategyId);
-      fetchArticles(urlStrategyId);
-    }
-  }, [urlStrategyId]);
 
   const fetchArticles = async (sid: string) => {
     if (!sid) return;
