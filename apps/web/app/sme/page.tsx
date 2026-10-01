@@ -39,6 +39,24 @@ function SMEContent() {
     capacityHoursPerMonth: 10,
   });
 
+  const fetchSMEs = async () => {
+    try {
+      setLoading(true);
+      const apiResponse = await fetch(`/api/sme?workspaceId=${workspaceId}`);
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        setSmes(data.smes || []);
+      } else {
+        setError('Failed to load SME profiles');
+      }
+    } catch (err) {
+      setError('Failed to load SME profiles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!wsLoading && !user) {
       router.push('/auth/login');
@@ -63,24 +81,6 @@ function SMEContent() {
   }
 
   if (!user) return null;
-
-  const fetchSMEs = async () => {
-    try {
-      setLoading(true);
-      const apiResponse = await fetch(`/api/sme?workspaceId=${workspaceId}`);
-
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
-        setSmes(data.smes || []);
-      } else {
-        setError('Failed to load SME profiles');
-      }
-    } catch (err) {
-      setError('Failed to load SME profiles');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddSME = async (e: React.FormEvent) => {
     e.preventDefault();
