@@ -34,8 +34,6 @@ export async function POST(request: NextRequest) {
     // Use fetched content if available, otherwise fall back to sourceContent
     const contentToScore = fetchedContent || sourceContent || sourceTitle;
     const guidelines = brandProfile.guidelines;
-    const strongExemplars = brandProfile.strongExemplars || [];
-    const weakExemplars = brandProfile.weakExemplars || [];
 
     // Use text model to analyze alignment
     const provider = await getTextModelProvider();

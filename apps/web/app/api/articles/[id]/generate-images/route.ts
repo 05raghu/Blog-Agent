@@ -4,7 +4,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getImageModelProvider } from '@/lib/image-model';
-import { getTextModelProvider } from '@/lib/text-model';
 
 function extractImagePromptsFromContent(content: string): string[] {
   // Look for image prompts in the content
@@ -36,11 +35,11 @@ function extractImagePromptsFromContent(content: string): string[] {
   return prompts;
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest) {
   console.log('\n=== [API] Generate Images Request Started ===');
   try {
     const body = await request.json();
-    const { title, brief, outline, content, style } = body;
+    const { title, content, style } = body;
 
     console.log('[DEBUG-1] Raw request body keys:', Object.keys(body));
     console.log('[DEBUG-2] Title:', title ? `${title.substring(0, 50)}...` : 'MISSING');

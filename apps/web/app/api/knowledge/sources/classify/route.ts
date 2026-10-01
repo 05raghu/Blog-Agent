@@ -49,8 +49,9 @@ Respond in JSON format:
 }`;
 
     const response = await textModel.generateDraft({
+      title: `Classify: ${sourceTitle}`,
       brief: prompt,
-      outline: `Classify: ${sourceTitle}`,
+      outline: `Classification Analysis`,
       targetLength: 300,
     });
 

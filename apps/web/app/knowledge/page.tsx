@@ -48,7 +48,7 @@ const EditIcon = () => (
 function KnowledgeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { workspaceId, role, user, loading: authLoading } = useWorkspace();
+  const { workspaceId, user, loading: authLoading } = useWorkspace();
   const strategyId = searchParams?.get('strategyId');
 
   useEffect(() => {
@@ -125,7 +125,7 @@ function KnowledgeContent() {
   const [newToneBoundary, setNewToneBoundary] = useState('');
   const [newTerm, setNewTerm] = useState('');
   const [newTermExplanation, setNewTermExplanation] = useState('');
-  const [voiceProfile, setVoiceProfile] = useState<any>(null);
+  const [_voiceProfile, _setVoiceProfile] = useState<any>(null);
   const [voiceAlignmentScores, setVoiceAlignmentScores] = useState<Record<string, number>>({});
   const [plagiarismScores, setPlagiarismScores] = useState<Record<string, number>>({});
   const [brandApprovalStatus, setBrandApprovalStatus] = useState('pending'); // pending | approved

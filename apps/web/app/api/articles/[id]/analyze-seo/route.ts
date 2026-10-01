@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest) {
   try {
     const { title, content, brief } = await request.json();
 

@@ -96,12 +96,12 @@ export default function ArticleEditorPage() {
   const [selectedSources, setSelectedSources] = useState<Record<string, boolean>>({});
 
   // SEO state
-  const [seoScore, setSeoScore] = useState(0);
+  const [_seoScore, setSeoScore] = useState(0);
   const [seoLoading, setSeoLoading] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<any>(null);
 
   // Cross-linking state
-  const [crosslinks, setCrosslinks] = useState<any[]>([]);
+  const [crosslinks, _setCrosslinks] = useState<any[]>([]);
   const [crosslinksLoading, setCrosslinksLoading] = useState(false);
   const [suggestedLinks, setSuggestedLinks] = useState<any[]>([]);
 
@@ -392,9 +392,6 @@ export default function ArticleEditorPage() {
       setArticle((prev) => prev ? { ...prev, linkedSources: allSelectedIds } : null);
 
       // Clear only newly selected sources (keep all linked ones checked as disabled)
-      const newlyLinked = allSelectedIds.filter(
-        (id) => !(article?.linkedSources?.includes(id) || false)
-      );
       const remainingSelected = allSelectedIds.reduce(
         (acc, id) => ({ ...acc, [id]: true }),
         {}
@@ -413,10 +410,9 @@ export default function ArticleEditorPage() {
 
   // Show save status briefly
   useEffect(() => {
-    if (saveStatus) {
-      const timer = setTimeout(() => setSaveStatus(null), 2000);
-      return () => clearTimeout(timer);
-    }
+    if (!saveStatus) return;
+    const timer = setTimeout(() => setSaveStatus(null), 2000);
+    return () => clearTimeout(timer);
   }, [saveStatus]);
 
   // Auto-save content when it changes (debounced)
@@ -443,13 +439,12 @@ export default function ArticleEditorPage() {
 
   // Auto-scroll to top when error appears
   useEffect(() => {
-    if (error) {
-      console.log('[ERROR]', error);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Auto-clear error after 5 seconds
-      const timer = setTimeout(() => setError(''), 5000);
-      return () => clearTimeout(timer);
-    }
+    if (!error) return;
+    console.log('[ERROR]', error);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Auto-clear error after 5 seconds
+    const timer = setTimeout(() => setError(''), 5000);
+    return () => clearTimeout(timer);
   }, [error]);
 
   // Auto-save brief when it changes (debounced)
@@ -555,7 +550,7 @@ export default function ArticleEditorPage() {
 
     // Also fix patterns like [text]([url)/ and [text]([url]/)
     const alternativeMalformed = /\[([^\[\]]+)\]\(\[?([^[\]]*?https?:\/\/[^)\]]+)\]?\/?[)\]]*\)/g;
-    fixed = fixed.replace(alternativeMalformed, (match, text, url) => {
+    fixed = fixed.replace(alternativeMalformed, (_match, text, url) => {
       // Clean up the URL
       const cleanUrl = url.replace(/[\[\]]/g, '').trim();
       return `[${text}](${cleanUrl})`;
@@ -1014,8 +1009,8 @@ export default function ArticleEditorPage() {
                 {activeTab === 'workflow' && (
                   <StageWorkflow
                     currentStage={currentStage}
-                    onStageChange={handleStageChange}
-                    canTransition={canTransition}
+                    onStageChange={handleStageChange as any}
+                    canTransition={canTransition as any}
                   />
                 )}
 

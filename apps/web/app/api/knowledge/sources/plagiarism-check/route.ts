@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       // Partial title match (word overlap)
       const titleWords = titleLower.split(/\s+/);
       const existingWords = existingTitleLower.split(/\s+/);
-      const overlap = titleWords.filter((w) => existingWords.includes(w)).length;
+      const overlap = titleWords.filter((w: string) => existingWords.includes(w)).length;
       const similarity = overlap / Math.max(titleWords.length, existingWords.length);
 
       // Flag if 70%+ word overlap or 12+ character overlap
