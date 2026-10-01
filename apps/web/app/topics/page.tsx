@@ -42,6 +42,55 @@ function TopicsContent() {
   const strategyId = searchParams?.get('strategyId');
   const { workspaceId, user, loading: authLoading } = useWorkspace();
 
+  // All hooks must be declared before any conditional returns
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [smes, setSmes] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [creatingArticle, setCreatingArticle] = useState<string | null>(null);
+  const [approvedTopics, setApprovedTopics] = useState<Set<string>>(new Set());
+  const [topicsWithArticles, setTopicsWithArticles] = useState<Set<string>>(new Set());
+  const [topicToArticleMap, setTopicToArticleMap] = useState<Map<string, string>>(new Map());
+  const [showSmeAssignmentModal, setShowSmeAssignmentModal] = useState(false);
+  const [topicForSmeAssignment, setTopicForSmeAssignment] = useState<Topic | null>(null);
+  const [selectedSmeId, setSelectedSmeId] = useState<string>('');
+  const [recommendedSmes, setRecommendedSmes] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creatingTopic, setCreatingTopic] = useState(false);
+  const [createMode, setCreateMode] = useState<'manual' | 'bulk'>('manual');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [formData, setFormData] = useState({
+    title: '',
+    summary: '',
+    angle: '',
+    targetOffering: '',
+    format: 'blog' as 'blog' | 'guide' | 'case_study' | 'whitepaper',
+    geography: '',
+    audience: '',
+  });
+  const [strategyData, setStrategyData] = useState<any>(null);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [generatingTopics, setGeneratingTopics] = useState(false);
+  const [seedText, setSeedText] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    summary: '',
+    angle: '',
+    targetOffering: '',
+    format: 'blog' as 'blog' | 'guide' | 'case_study' | 'whitepaper',
+    geography: '',
+    audience: '',
+  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteOption, setDeleteOption] = useState<'topic-only' | 'with-articles'>('topic-only');
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login');
@@ -60,64 +109,6 @@ function TopicsContent() {
   }
 
   if (!user) return null;
-
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [smes, setSmes] = useState<Array<{ id: string; name: string }>>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [creatingArticle, setCreatingArticle] = useState<string | null>(null);
-  const [approvedTopics, setApprovedTopics] = useState<Set<string>>(new Set());
-  const [topicsWithArticles, setTopicsWithArticles] = useState<Set<string>>(new Set());
-  const [topicToArticleMap, setTopicToArticleMap] = useState<Map<string, string>>(new Map());
-
-  // SME assignment state
-  const [showSmeAssignmentModal, setShowSmeAssignmentModal] = useState(false);
-  const [topicForSmeAssignment, setTopicForSmeAssignment] = useState<Topic | null>(null);
-  const [selectedSmeId, setSelectedSmeId] = useState<string>('');
-  const [recommendedSmes, setRecommendedSmes] = useState<any[]>([]);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-
-  // Topic creation form state
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [creatingTopic, setCreatingTopic] = useState(false);
-  const [createMode, setCreateMode] = useState<'manual' | 'bulk'>('manual');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<string>('');
-  const [formData, setFormData] = useState({
-    title: '',
-    summary: '',
-    angle: '',
-    targetOffering: '',
-    format: 'blog' as 'blog' | 'guide' | 'case_study' | 'whitepaper',
-    geography: '',
-    audience: '',
-  });
-  const [strategyData, setStrategyData] = useState<any>(null);
-
-  // Topic generation form state
-  const [showGenerateForm, setShowGenerateForm] = useState(false);
-  const [generatingTopics, setGeneratingTopics] = useState(false);
-  const [seedText, setSeedText] = useState('');
-
-  // Edit state
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    title: '',
-    summary: '',
-    angle: '',
-    targetOffering: '',
-    format: 'blog' as 'blog' | 'guide' | 'case_study' | 'whitepaper',
-    geography: '',
-    audience: '',
-  });
-
-  // Delete state
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteOption, setDeleteOption] = useState<'topic-only' | 'with-articles'>('topic-only');
 
   // Auto-scroll to top when error appears
   useEffect(() => {
