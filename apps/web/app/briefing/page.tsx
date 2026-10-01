@@ -206,8 +206,10 @@ function BriefingContent() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    loadData();
-  }, [workspaceId]);
+    if (strategyId) {
+      loadData();
+    }
+  }, [strategyId, workspaceId]);
 
   if (authLoading) {
     return (
