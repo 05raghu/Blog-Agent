@@ -110,39 +110,6 @@ function TopicsContent() {
 
   if (!user) return null;
 
-  // Auto-scroll to top when error appears
-  useEffect(() => {
-    if (error) {
-      console.log('[ERROR]', error);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [error]);
-
-  // Show success toast and auto-clear
-  useEffect(() => {
-    if (!success) return;
-
-    console.log('[SUCCESS]', success);
-    const timer = setTimeout(() => setSuccess(''), 3000);
-    return () => clearTimeout(timer);
-  }, [success]);
-
-  useEffect(() => {
-    if (!strategyId) {
-      setError('No strategy ID provided');
-      setLoading(false);
-      return;
-    }
-
-    // Restore approval state from localStorage
-    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
-    if (savedApprovals) {
-      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
-    }
-
-    fetchTopics();
-  }, [strategyId]);
-
   const fetchTopics = async () => {
     try {
       setLoading(true);
@@ -226,6 +193,39 @@ function TopicsContent() {
       setLoading(false);
     }
   };
+
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      console.log('[ERROR]', error);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
+  // Show success toast and auto-clear
+  useEffect(() => {
+    if (!success) return;
+
+    console.log('[SUCCESS]', success);
+    const timer = setTimeout(() => setSuccess(''), 3000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (!strategyId) {
+      setError('No strategy ID provided');
+      setLoading(false);
+      return;
+    }
+
+    // Restore approval state from localStorage
+    const savedApprovals = localStorage.getItem(`approvals_${strategyId}`);
+    if (savedApprovals) {
+      setApprovedTopics(new Set(JSON.parse(savedApprovals)));
+    }
+
+    fetchTopics();
+  }, [strategyId]);
 
   const handleApproveTopic = async (topic: Topic) => {
     if (!approvedTopics.has(topic.id)) {
