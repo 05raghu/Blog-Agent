@@ -32,6 +32,21 @@ function CalendarContent() {
   const [loading, setLoading] = useState(!!urlStrategyId); // Start loading if URL has strategyId
   const [error, setError] = useState('');
 
+  const fetchArticles = async (sid: string) => {
+    if (!sid) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/articles?strategyId=${sid}`);
+      if (!response.ok) throw new Error('Failed to fetch articles');
+      const data = await response.json();
+      setArticles(data.articles || []);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login');
@@ -58,21 +73,6 @@ function CalendarContent() {
   }
 
   if (!user) return null;
-
-  const fetchArticles = async (sid: string) => {
-    if (!sid) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/articles?strategyId=${sid}`);
-      if (!response.ok) throw new Error('Failed to fetch articles');
-      const data = await response.json();
-      setArticles(data.articles || []);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Group articles by publish date
   const groupedByDate = articles.reduce((acc, article) => {
