@@ -24,6 +24,21 @@ function SMEContent() {
   const strategyId = searchParams?.get('strategyId');
   const { workspaceId, user, loading: wsLoading } = useWorkspace();
 
+  // All hooks must be declared before any conditional returns
+  const [smes, setSmes] = useState<SMEProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    expertise: '',
+    biography: '',
+    capacityHoursPerMonth: 10,
+  });
+
   useEffect(() => {
     if (!wsLoading && !user) {
       router.push('/auth/login');
@@ -42,21 +57,6 @@ function SMEContent() {
   }
 
   if (!user) return null;
-
-  const [smes, setSmes] = useState<SMEProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    expertise: '',
-    biography: '',
-    capacityHoursPerMonth: 10,
-  });
 
   useEffect(() => {
     if (!wsLoading && workspaceId) {
