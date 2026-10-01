@@ -8,8 +8,18 @@ import { useWorkspace } from '@/lib/workspace-context';
 export default function CreateStrategyPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useWorkspace();
+
+  // All hooks must be called at top level, before any returns
   const [step, setStep] = useState<'input' | 'generating' | 'success'>('input');
   const [error, setError] = useState('');
+  const [title, setTitle] = useState('');
+  const [offerings, setOfferings] = useState('');
+  const [targetIcps, setTargetIcps] = useState('');
+  const [geographies, setGeographies] = useState('');
+  const [competitors, setCompetitors] = useState('');
+  const [contentMix, setContentMix] = useState('');
+  const [description, setDescription] = useState('');
+  const [strategyId, setStrategyId] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -29,16 +39,6 @@ export default function CreateStrategyPage() {
   }
 
   if (!user) return null;
-
-  const [title, setTitle] = useState('');
-  const [offerings, setOfferings] = useState('');
-  const [targetIcps, setTargetIcps] = useState('');
-  const [geographies, setGeographies] = useState('');
-  const [competitors, setCompetitors] = useState('');
-  const [contentMix, setContentMix] = useState('');
-  const [description, setDescription] = useState('');
-
-  const [strategyId, setStrategyId] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
