@@ -126,8 +126,8 @@ function KnowledgeContent() {
   const [newTerm, setNewTerm] = useState('');
   const [newTermExplanation, setNewTermExplanation] = useState('');
   const [_voiceProfile, _setVoiceProfile] = useState<any>(null);
-  const [voiceAlignmentScores, setVoiceAlignmentScores] = useState<Record<string, number>>({});
-  const [plagiarismScores, setPlagiarismScores] = useState<Record<string, number>>({});
+  const [_voiceAlignmentScores, _setVoiceAlignmentScores] = useState<Record<string, number>>({});
+  const [_plagiarismScores, _setPlagiarismScores] = useState<Record<string, number>>({});
   const [brandApprovalStatus, setBrandApprovalStatus] = useState('pending'); // pending | approved
 
   // Blocked Feeds Configuration state
@@ -145,10 +145,9 @@ function KnowledgeContent() {
 
   // Auto-dismiss toast after 4 seconds
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   const loadBrandProfile = async () => {
