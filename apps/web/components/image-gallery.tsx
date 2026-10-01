@@ -21,8 +21,8 @@ interface ImageGalleryProps {
 
 export function ImageGallery({
   title,
-  brief,
-  outline,
+  brief: _brief,
+  outline: _outline,
   onGenerate,
   onSelect,
   isLoading = false,
