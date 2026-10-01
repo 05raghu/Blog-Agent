@@ -96,6 +96,10 @@ function BriefingContent() {
     }
   }, [authLoading, user, router]);
 
+  useEffect(() => {
+    loadData();
+  }, [workspaceId]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -108,10 +112,6 @@ function BriefingContent() {
   }
 
   if (!user) return null;
-
-  useEffect(() => {
-    loadData();
-  }, [workspaceId]);
 
   const loadData = async () => {
     try {
