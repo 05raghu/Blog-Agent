@@ -45,6 +45,12 @@ function SMEContent() {
     }
   }, [wsLoading, user, router]);
 
+  useEffect(() => {
+    if (!wsLoading && workspaceId) {
+      fetchSMEs();
+    }
+  }, [workspaceId, wsLoading]);
+
   if (wsLoading) {
     return (
       <div className="min-h-screen bg-parchment flex items-center justify-center">
@@ -57,12 +63,6 @@ function SMEContent() {
   }
 
   if (!user) return null;
-
-  useEffect(() => {
-    if (!wsLoading && workspaceId) {
-      fetchSMEs();
-    }
-  }, [workspaceId, wsLoading]);
 
   const fetchSMEs = async () => {
     try {

@@ -19,6 +19,21 @@ export default function StrategyPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loadingStrategies, setLoadingStrategies] = useState(true);
 
+  const fetchStrategies = async () => {
+    try {
+      setLoadingStrategies(true);
+      const response = await fetch('/api/strategy');
+      if (response.ok) {
+        const data = await response.json();
+        setStrategies(data.strategies || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch strategies:', err);
+    } finally {
+      setLoadingStrategies(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/login');
@@ -39,21 +54,6 @@ export default function StrategyPage() {
   }
 
   if (!user) return null;
-
-  const fetchStrategies = async () => {
-    try {
-      setLoadingStrategies(true);
-      const response = await fetch('/api/strategy');
-      if (response.ok) {
-        const data = await response.json();
-        setStrategies(data.strategies || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch strategies:', err);
-    } finally {
-      setLoadingStrategies(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-parchment">
