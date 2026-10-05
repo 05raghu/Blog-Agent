@@ -61,13 +61,13 @@ export function scoreTopicCandidate(topic: TopicCandidate, strategy: Strategy): 
   const missingInputs: string[] = [];
 
   // Score each dimension
-  const strategicRelevance = scoreStrategicRelevance(topic, strategy, missingInputs);
-  const audienceIcpUsefulness = scoreAudienceIcpUsefulness(topic, strategy, missingInputs);
-  const availableEvidenceAndDemand = scoreAvailableEvidence(topic, strategy, missingInputs);
-  const differentiatedAngle = scoreDifferentiatedAngle(topic, strategy, missingInputs);
-  const smeFit = scoreSmeFit(topic, strategy, missingInputs);
-  const searchContentGap = scoreSearchContentGap(topic, missingInputs);
-  const conversionDistributionPotential = scoreConversionPotential(topic, missingInputs);
+  const strategicRelevance = scoreStrategicRelevance(topic, strategy);
+  const audienceIcpUsefulness = scoreAudienceIcpUsefulness(topic, strategy);
+  const availableEvidenceAndDemand = scoreAvailableEvidence(topic);
+  const differentiatedAngle = scoreDifferentiatedAngle(topic);
+  const smeFit = scoreSmeFit(topic);
+  const searchContentGap = scoreSearchContentGap(topic);
+  const conversionDistributionPotential = scoreConversionPotential(topic);
 
   const breakdown: TopicScoreBreakdown = {
     strategicRelevance,
@@ -96,10 +96,10 @@ export function scoreTopicCandidate(topic: TopicCandidate, strategy: Strategy): 
   const confidence = Math.round(((maxInputs - missingInputs.length) / maxInputs) * 100);
 
   // Detect cannibalization
-  const cannibalizationRisk = detectCannibalization(topic, strategy);
+  const cannibalizationRisk = detectCannibalization(topic);
 
   // Get SME recommendations
-  const recommendedSmes = getSmERecommendations(topic, strategy, smeFit.score);
+  const recommendedSmes = getSmERecommendations(topic, smeFit.score);
 
   return {
     score: Math.min(100, Math.max(0, score)),
@@ -113,8 +113,7 @@ export function scoreTopicCandidate(topic: TopicCandidate, strategy: Strategy): 
 
 function scoreStrategicRelevance(
   topic: TopicCandidate,
-  strategy: Strategy,
-  missingInputs: string[]
+  strategy: Strategy
 ): { score: number; evidence: string } {
   // Does this align with strategy objectives and offerings?
   const text = (topic.title + ' ' + (topic.summary || '')).toLowerCase();
@@ -148,8 +147,7 @@ function scoreStrategicRelevance(
 
 function scoreAudienceIcpUsefulness(
   topic: TopicCandidate,
-  strategy: Strategy,
-  missingInputs: string[]
+  strategy: Strategy
 ): { score: number; evidence: string } {
   // Does this solve problems for target ICPs?
   const text = (topic.title + ' ' + (topic.summary || '')).toLowerCase();
@@ -182,16 +180,13 @@ function scoreAudienceIcpUsefulness(
 }
 
 function scoreAvailableEvidence(
-  topic: TopicCandidate,
-  strategy: Strategy,
-  missingInputs: string[]
+  topic: TopicCandidate
 ): { score: number; evidence: string } {
   // Is there demand and evidence available?
   let score = 50;
   let evidence = '';
 
   if (!topic.summary || topic.summary.length === 0) {
-    missingInputs.push('Topic summary');
     return { score: 40, evidence: 'No summary provided' };
   }
 
@@ -222,16 +217,13 @@ function scoreAvailableEvidence(
 }
 
 function scoreDifferentiatedAngle(
-  topic: TopicCandidate,
-  strategy: Strategy,
-  missingInputs: string[]
+  topic: TopicCandidate
 ): { score: number; evidence: string } {
   // Is this differentiated vs. competitors?
   let score = 50;
   let evidence = '';
 
   if (!topic.angle) {
-    missingInputs.push('Topic angle');
     return { score: 45, evidence: 'No specific angle provided' };
   }
 
@@ -257,16 +249,13 @@ function scoreDifferentiatedAngle(
 }
 
 function scoreSmeFit(
-  topic: TopicCandidate,
-  strategy: Strategy,
-  missingInputs: string[]
+  topic: TopicCandidate
 ): { score: number; evidence: string } {
   // Which SME would be best for this?
   let score = 50;
   let evidence = '';
 
   if (!topic.targetOffering) {
-    missingInputs.push('Target offering');
     evidence = 'Target offering not specified';
     score = 45;
   } else {
@@ -288,8 +277,7 @@ function scoreSmeFit(
 }
 
 function scoreSearchContentGap(
-  topic: TopicCandidate,
-  missingInputs: string[]
+  topic: TopicCandidate
 ): { score: number; evidence: string } {
   // Is there search demand and content gap?
   const text = topic.title.toLowerCase();
@@ -316,8 +304,7 @@ function scoreSearchContentGap(
 }
 
 function scoreConversionPotential(
-  topic: TopicCandidate,
-  missingInputs: string[]
+  topic: TopicCandidate
 ): { score: number; evidence: string } {
   // Does this have CTA and conversion potential?
   const text = (topic.title + ' ' + (topic.summary || '')).toLowerCase();
@@ -344,8 +331,7 @@ function scoreConversionPotential(
 }
 
 function detectCannibalization(
-  topic: TopicCandidate,
-  strategy: Strategy
+  topic: TopicCandidate
 ): { exists: boolean; message?: string } {
   // Simple detection: same topic in different formats
   // In production, this would check against published articles
@@ -364,7 +350,6 @@ function detectCannibalization(
 
 function getSmERecommendations(
   topic: TopicCandidate,
-  strategy: Strategy,
   smeFitScore: number
 ): Array<{ name: string; fitScore: number; reason: string }> {
   // In production, this would recommend from actual SME profiles

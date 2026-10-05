@@ -42,16 +42,37 @@ function SMEContent() {
   const fetchSMEs = async () => {
     try {
       setLoading(true);
+
+      // Try API first
       const apiResponse = await fetch(`/api/sme?workspaceId=${workspaceId}`);
 
       if (apiResponse.ok) {
         const data = await apiResponse.json();
-        setSmes(data.smes || []);
+        const smesList = data.smes || [];
+        setSmes(smesList);
+        // Sync to localStorage
+        localStorage.setItem('sme_profiles', JSON.stringify(smesList));
+      } else {
+        // Fall back to localStorage
+        const stored = localStorage.getItem('sme_profiles');
+        if (stored) {
+          const allSMEs = JSON.parse(stored);
+          const filtered = allSMEs.filter((s: SMEProfile) => s.workspaceId === workspaceId);
+          setSmes(filtered);
+        } else {
+          setError('Failed to load SME profiles');
+        }
+      }
+    } catch (err) {
+      // Fall back to localStorage on error
+      const stored = localStorage.getItem('sme_profiles');
+      if (stored) {
+        const allSMEs = JSON.parse(stored);
+        const filtered = allSMEs.filter((s: SMEProfile) => s.workspaceId === workspaceId);
+        setSmes(filtered);
       } else {
         setError('Failed to load SME profiles');
       }
-    } catch (err) {
-      setError('Failed to load SME profiles');
     } finally {
       setLoading(false);
     }
@@ -127,6 +148,7 @@ function SMEContent() {
           const result = await response.json();
           const updated = smes.map((s) => (s.id === editingId ? result.sme : s));
           setSmes(updated);
+          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       } else {
         // Create via API
@@ -143,6 +165,7 @@ function SMEContent() {
           const result = await response.json();
           const updated = [result.sme, ...smes];
           setSmes(updated);
+          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       }
 
@@ -173,6 +196,7 @@ function SMEContent() {
         if (response.ok) {
           const updated = smes.filter((s) => s.id !== id);
           setSmes(updated);
+          localStorage.setItem('sme_profiles', JSON.stringify(updated));
         }
       } catch (err) {
         console.error('Failed to delete SME:', err);

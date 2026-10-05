@@ -142,7 +142,7 @@ export class PuppeteerSearchCrawl implements SearchCrawlProvider {
         }));
       });
 
-      metaTags.forEach((tag) => {
+      metaTags.forEach((tag: { name: string; content: string }) => {
         if (tag.name && tag.content) {
           metadata[tag.name] = tag.content;
         }

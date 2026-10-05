@@ -75,6 +75,8 @@ function KnowledgeContent() {
     description: '',
     transcriptText: '',
     file: null as File | null,
+    sensitivityLevel: 'public' as 'public' | 'internal' | 'confidential' | 'restricted',
+    citationPermission: false,
   });
 
   const [editFormData, setEditFormData] = useState<Partial<Source> & { file?: File | null }>({});
@@ -343,6 +345,8 @@ function KnowledgeContent() {
         type: formData.type,
         title: formData.title,
         author: formData.author || undefined,
+        sensitivityLevel: formData.sensitivityLevel,
+        citationPermission: formData.citationPermission,
       };
 
       if (formData.type === 'url') payload.canonicalUrl = formData.canonicalUrl;
@@ -370,7 +374,8 @@ function KnowledgeContent() {
           description: formData.description,
           transcriptText: formData.transcriptText,
           trustTier: 'unreviewed',
-          citationPermission: false,
+          citationPermission: formData.citationPermission,
+          sensitivityLevel: formData.sensitivityLevel,
           createdAt: new Date().toISOString(),
         };
 
@@ -385,6 +390,8 @@ function KnowledgeContent() {
           description: '',
           transcriptText: '',
           file: null,
+          sensitivityLevel: 'public',
+          citationPermission: false,
         });
         setShowForm(false);
 
@@ -1022,6 +1029,56 @@ function KnowledgeContent() {
                       />
                     </div>
                   )}
+                </div>
+
+                <div className="flex items-end justify-between gap-3 pt-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium mb-2">Sensitivity Level</label>
+                    <select
+                      value={formData.sensitivityLevel || 'public'}
+                      onChange={(e) => {
+                        const newLevel = e.target.value as any;
+                        setFormData({
+                          ...formData,
+                          sensitivityLevel: newLevel,
+                        });
+                        setError('');
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                    >
+                      <option value="public">🌐 Public</option>
+                      <option value="internal">🏢 Internal</option>
+                      <option value="confidential">🔒 Confidential</option>
+                      <option value="restricted">🚫 Restricted</option>
+                    </select>
+                  </div>
+
+                  <label
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition ${formData.sensitivityLevel === 'public' || !formData.sensitivityLevel
+                        ? 'border-green-400 bg-green-50 hover:bg-green-100 cursor-pointer'
+                        : 'border-slate-300 bg-slate-100 cursor-not-allowed opacity-50'
+                      }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.citationPermission || false}
+                      onChange={(e) => {
+                        if (!formData.sensitivityLevel || formData.sensitivityLevel === 'public') {
+                          setFormData({
+                            ...formData,
+                            citationPermission: e.target.checked,
+                          });
+                          setError('');
+                        }
+                      }}
+                      disabled={formData.sensitivityLevel && formData.sensitivityLevel !== 'public'}
+                      className={`w-4 h-4 ${!formData.sensitivityLevel || formData.sensitivityLevel === 'public'
+                          ? 'cursor-pointer'
+                          : 'cursor-not-allowed'
+                        }`}
+                    />
+                    <span className="text-sm font-medium whitespace-nowrap">Can Cite</span>
+                  </label>
                 </div>
 
                 <div className="flex gap-2 pt-2">

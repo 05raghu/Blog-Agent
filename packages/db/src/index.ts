@@ -3,8 +3,4 @@
 
 export * from './schema';
 export * from './client';
-// Repository layer exports (to be filled in next session):
-// export * from './repositories/workspace-repository';
-// export * from './repositories/article-repository';
-// export * from './repositories/approval-repository';
-// etc.
+export { sourceRepository, SourceRepository } from './repositories/sources';

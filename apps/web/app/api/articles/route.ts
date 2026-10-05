@@ -7,7 +7,7 @@ import { getSMEsByWorkspace, updateSME } from '@/lib/sme-store';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, workspaceId = 'default-workspace' } = body;
+    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, briefingSessionId, briefingInsights, workspaceId = 'default-workspace' } = body;
 
     if (!topicId || !strategyId) {
       return NextResponse.json(
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       contentId: `content_${Date.now()}`, // Permanent identifier for tracking
       topicId,
       strategyId,
+      briefingSessionId: briefingSessionId || null, // Link to SME briefing session
       title: title || 'Untitled Article',
       brief: brief || 'Brief to be determined',
       outline: defaultOutline,
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
       status: 'NOT_STARTED',
       assignedSmeId: assignedSmeId || null,
       assignedSmeName: assignedSmeName || null,
+      briefingInsights: briefingInsights || {}, // Extracted insights from briefing session
       owner: 'system', // TODO: use actual user from auth
       plannedPublishDate: null,
       wordCount: estimatedWordCount,
@@ -128,6 +130,8 @@ export async function GET(request: NextRequest) {
         status: article.status,
         topicId: article.topicId,
         strategyId: article.strategyId,
+        briefingSessionId: article.briefingSessionId || null,
+        briefingInsights: article.briefingInsights || {},
         assignedSME: article.assignedSME,
         owner: article.owner,
         plannedPublishDate: article.plannedPublishDate,

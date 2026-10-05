@@ -12,7 +12,9 @@ import { SEOAnalyzer } from '@/components/seo-analyzer';
 import { CrosslinkManager } from '@/components/crosslink-manager';
 import { CTAGenerator } from '@/components/cta-generator';
 import { ImageGallery } from '@/components/image-gallery';
+import { BriefingInsightsPanel } from '@/components/briefing-insights-panel';
 import { validateTransition, type ArticleStage, STAGE_COLORS, STAGE_LABELS } from '@blog-agent/domain';
+import type { BriefingInsights } from '@/lib/briefing-insights';
 
 interface CTA {
   text: string;
@@ -35,6 +37,9 @@ interface Article {
   status: ArticleStage;
   topicId: string;
   strategyId: string;
+  briefingSessionId?: string | null;
+  briefingInsights?: BriefingInsights;
+  assignedSmeName?: string;
   wordCount: number;
   linkedSources?: string[]; // Array of source IDs
   selectedCTA?: CTA; // Selected CTA for the article
@@ -99,6 +104,149 @@ export default function ArticleEditorPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'sources'>('brief');
+
+  // All functions must be defined before useEffect hooks that call them
+  const fetchSources = async () => {
+    try {
+      setSourcesLoading(true);
+      const response = await fetch(`/api/knowledge/sources?strategyId=${strategyId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSources(data.sources || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sources:', err);
+    } finally {
+      setSourcesLoading(false);
+    }
+  };
+
+  const fetchArticle = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/articles/${id}`);
+      if (!response.ok) throw new Error('Article not found');
+
+      const data = await response.json();
+      setArticle(data);
+      setBrief(data.brief || '');
+      setAngle(data.angle || '');
+      setAudience(data.targetAudience || '');
+      setContent(data.content || '');
+      setOutline(data.outline || '');
+      setCurrentStage(data.status || 'NOT_STARTED');
+      setPublishDate(data.plannedPublishDate || '');
+
+      // Load persisted SEO analysis if available
+      if (data.seoAnalysis) {
+        console.log('[DEBUG] Loading persisted SEO analysis:', data.seoAnalysis);
+        setSeoAnalysis(data.seoAnalysis);
+        setSeoScore(data.seoScore || 0);
+      } else {
+        console.log('[DEBUG] No persisted SEO analysis found');
+      }
+
+      // Load persisted CTA if available
+      if (data.selectedCTA) {
+        console.log('[DEBUG] Loading persisted CTA:', data.selectedCTA);
+        setSelectedCTA(data.selectedCTA);
+      }
+
+      // Load persisted generated CTAs if available
+      if (data.generatedCTAs && data.generatedCTAs.length > 0) {
+        console.log('[DEBUG] Loading persisted generated CTAs:', data.generatedCTAs);
+        setCtas(data.generatedCTAs);
+      }
+
+      // Load persisted selected image if available
+      if (data.selectedImage) {
+        console.log('[DEBUG] Loading persisted selected image:', data.selectedImage);
+        setSelectedImage(data.selectedImage);
+      }
+
+      // Note: generatedImages are NOT persisted (too large as base64)
+      // Users need to regenerate them if needed by clicking "Generate Images"
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (field: string, value: string) => {
+    try {
+      setSaving(true);
+      setSaveStatus(null);
+
+      // Convert bare URLs to markdown for content field
+      let saveValue = value;
+      if (field === 'content') {
+        saveValue = convertBareLUrlsToMarkdown(value);
+      }
+
+      const payload: any = { [field]: saveValue };
+
+      const response = await fetch(`/api/articles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error('Failed to save');
+
+      const updated = await response.json();
+      setArticle(updated);
+      // Update content with converted URLs
+      if (field === 'content') {
+        setContent(saveValue);
+      }
+      setSaveStatus('success');
+    } catch (err) {
+      setError((err as Error).message);
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Fix malformed markdown links (nested brackets)
+  const fixMalformedLinks = (text: string): string => {
+    // Match malformed patterns like [text]([nested](url)extra) and convert to [text](url)
+    const malformedLinkRegex = /\[([^\[\]]+)\]\(\[([^\[\]]+)\]\(([^)]+)\)[^)]*\)/g;
+    let fixed = text.replace(malformedLinkRegex, '[$1]($3)');
+
+    // Also fix patterns like [text]([url)/ and [text]([url]/)
+    const alternativeMalformed = /\[([^\[\]]+)\]\(\[?([^[\]]*?https?:\/\/[^)\]]+)\]?\/?[)\]]*\)/g;
+    fixed = fixed.replace(alternativeMalformed, (_match, text, url) => {
+      // Clean up the URL
+      const cleanUrl = url.replace(/[\[\]]/g, '').trim();
+      return `[${text}](${cleanUrl})`;
+    });
+
+    return fixed;
+  };
+
+  // Convert bare URLs to markdown links
+  const convertBareLUrlsToMarkdown = (text: string): string => {
+    // First fix malformed links
+    let processed = fixMalformedLinks(text);
+
+    // Regex to find bare URLs not already in markdown format
+    const bareUrlRegex = /(?<!\])\(?(https?:\/\/[^\s\)]+)(?!\))/g;
+
+    return processed.replace(bareUrlRegex, (match) => {
+      const url = match.replace(/[\(\)]/g, '');
+      // Extract a friendly name from URL
+      try {
+        const urlObj = new URL(url);
+        const parts = urlObj.pathname.split('/').filter(p => p);
+        const friendlyName = parts[parts.length - 1] || urlObj.hostname;
+        return `[${friendlyName}](${url})`;
+      } catch {
+        return `[${url}](${url})`;
+      }
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -229,26 +377,10 @@ export default function ArticleEditorPage() {
 
   if (!user) return null;
 
-  const fetchSources = async () => {
-    try {
-      setSourcesLoading(true);
-      const response = await fetch(`/api/knowledge/sources?strategyId=${strategyId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSources(data.sources || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch sources:', err);
-    } finally {
-      setSourcesLoading(false);
-    }
-  };
-
+  // Additional handler functions for other actions
   const handleSEOAnalysis = async () => {
     try {
       setSeoLoading(true);
-      console.log('[DEBUG] Starting SEO analysis...');
-
       const response = await fetch(`/api/articles/${id}/analyze-seo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,12 +394,10 @@ export default function ArticleEditorPage() {
       if (!response.ok) throw new Error('Failed to analyze SEO');
 
       const data = await response.json();
-      console.log('[DEBUG] ✅ SEO analysis received:', data);
       setSeoAnalysis(data);
       setSeoScore(data.score);
 
       // Persist SEO analysis to backend
-      console.log('[DEBUG] 💾 Saving to backend...');
       const saveResponse = await fetch(`/api/articles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -277,17 +407,10 @@ export default function ArticleEditorPage() {
         }),
       });
 
-      console.log('[DEBUG] Save response status:', saveResponse.status);
-
       if (!saveResponse.ok) {
-        console.error('[DEBUG] ❌ Failed to save SEO analysis', saveResponse.status);
         throw new Error(`Save failed: ${saveResponse.status}`);
       }
-
-      const savedData = await saveResponse.json();
-      console.log('[DEBUG] ✅ SEO analysis saved! Backend returned:', savedData.seoAnalysis ? 'HAS DATA' : 'NO DATA');
     } catch (err) {
-      console.error('[DEBUG] ❌ Error in handleSEOAnalysis:', err);
       setError((err as Error).message);
     } finally {
       setSeoLoading(false);
@@ -311,19 +434,6 @@ export default function ArticleEditorPage() {
 
       const data = await response.json();
       setSuggestedLinks(data.suggestions || []);
-
-      // Auto-detect which links are already in content
-      const approvedLinks: Record<string, boolean> = {};
-      (data.suggestions || []).forEach((link: any) => {
-        if (content.includes(`/articles/${link.id}`)) {
-          approvedLinks[link.id] = true;
-        }
-      });
-
-      // Store approved state in localStorage so it persists
-      if (Object.keys(approvedLinks).length > 0) {
-        localStorage.setItem(`crosslinks_${id}`, JSON.stringify(approvedLinks));
-      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -350,19 +460,6 @@ export default function ArticleEditorPage() {
       const data = await response.json();
       const generatedCtas = data.ctas || [];
       setCtas(generatedCtas);
-
-      // Save generated CTAs to backend for persistence
-      const saveResponse = await fetch(`/api/articles/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          generatedCTAs: generatedCtas,
-        }),
-      });
-
-      if (!saveResponse.ok) {
-        console.error('[DEBUG] Failed to save generated CTAs');
-      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -387,10 +484,8 @@ export default function ArticleEditorPage() {
       setArticle(data);
       setSelectedCTA(cta);
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
       setError((err as Error).message);
-      setSaveStatus('error');
     } finally {
       setSaving(false);
     }
@@ -399,7 +494,6 @@ export default function ArticleEditorPage() {
   const handleGenerateImages = async () => {
     try {
       setImagesLoading(true);
-      console.log('[Editor] Generating images...');
       const response = await fetch(`/api/articles/${id}/generate-images`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,7 +501,7 @@ export default function ArticleEditorPage() {
           title: article?.title,
           brief,
           outline,
-          content, // Pass content so API can extract image prompts
+          content,
           style: 'professional',
         }),
       });
@@ -417,14 +511,8 @@ export default function ArticleEditorPage() {
       const data = await response.json();
       const generatedImages = data.images || [];
       setImages(generatedImages);
-      console.log('[Editor] ✓ Generated', generatedImages.length, 'images');
-
-      // Note: We don't persist full image data to avoid payload size limits
-      // Images can be regenerated anytime by clicking "Regenerate"
-      // Only the selectedImage is persisted to the backend
     } catch (err) {
       setError((err as Error).message);
-      console.error('[ERROR] Image generation failed:', err);
     } finally {
       setImagesLoading(false);
     }
@@ -447,10 +535,8 @@ export default function ArticleEditorPage() {
       setArticle(data);
       setSelectedImage(image);
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
       setError((err as Error).message);
-      setSaveStatus('error');
     } finally {
       setSaving(false);
     }
@@ -471,148 +557,11 @@ export default function ArticleEditorPage() {
 
       if (!response.ok) throw new Error('Failed to link sources');
 
-      // Update article with linked sources
       setArticle((prev) => prev ? { ...prev, linkedSources: allSelectedIds } : null);
-
-      // Clear only newly selected sources (keep all linked ones checked as disabled)
-      const remainingSelected = allSelectedIds.reduce(
-        (acc, id) => ({ ...acc, [id]: true }),
-        {}
-      );
-      setSelectedSources(remainingSelected);
-
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus(null), 2000);
-    } catch (err) {
-      setError((err as Error).message);
-      console.error('Failed to link sources:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const fetchArticle = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/articles/${id}`);
-      if (!response.ok) throw new Error('Article not found');
-
-      const data = await response.json();
-      setArticle(data);
-      setBrief(data.brief || '');
-      setAngle(data.angle || '');
-      setAudience(data.targetAudience || '');
-      setContent(data.content || '');
-      setOutline(data.outline || '');
-      setCurrentStage(data.status || 'NOT_STARTED');
-      setPublishDate(data.plannedPublishDate || '');
-
-      // Load persisted SEO analysis if available
-      if (data.seoAnalysis) {
-        console.log('[DEBUG] Loading persisted SEO analysis:', data.seoAnalysis);
-        setSeoAnalysis(data.seoAnalysis);
-        setSeoScore(data.seoScore || 0);
-      } else {
-        console.log('[DEBUG] No persisted SEO analysis found');
-      }
-
-      // Load persisted CTA if available
-      if (data.selectedCTA) {
-        console.log('[DEBUG] Loading persisted CTA:', data.selectedCTA);
-        setSelectedCTA(data.selectedCTA);
-      }
-
-      // Load persisted generated CTAs if available
-      if (data.generatedCTAs && data.generatedCTAs.length > 0) {
-        console.log('[DEBUG] Loading persisted generated CTAs:', data.generatedCTAs);
-        setCtas(data.generatedCTAs);
-      }
-
-      // Load persisted selected image if available
-      if (data.selectedImage) {
-        console.log('[DEBUG] Loading persisted selected image:', data.selectedImage);
-        setSelectedImage(data.selectedImage);
-      }
-
-      // Note: generatedImages are NOT persisted (too large as base64)
-      // Users need to regenerate them if needed by clicking "Generate Images"
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fix malformed markdown links (nested brackets)
-  const fixMalformedLinks = (text: string): string => {
-    // Match malformed patterns like [text]([nested](url)extra) and convert to [text](url)
-    const malformedLinkRegex = /\[([^\[\]]+)\]\(\[([^\[\]]+)\]\(([^)]+)\)[^)]*\)/g;
-    let fixed = text.replace(malformedLinkRegex, '[$1]($3)');
-
-    // Also fix patterns like [text]([url)/ and [text]([url]/)
-    const alternativeMalformed = /\[([^\[\]]+)\]\(\[?([^[\]]*?https?:\/\/[^)\]]+)\]?\/?[)\]]*\)/g;
-    fixed = fixed.replace(alternativeMalformed, (_match, text, url) => {
-      // Clean up the URL
-      const cleanUrl = url.replace(/[\[\]]/g, '').trim();
-      return `[${text}](${cleanUrl})`;
-    });
-
-    return fixed;
-  };
-
-  // Convert bare URLs to markdown links
-  const convertBareLUrlsToMarkdown = (text: string): string => {
-    // First fix malformed links
-    let processed = fixMalformedLinks(text);
-
-    // Regex to find bare URLs not already in markdown format
-    const bareUrlRegex = /(?<!\])\(?(https?:\/\/[^\s\)]+)(?!\))/g;
-
-    return processed.replace(bareUrlRegex, (match) => {
-      const url = match.replace(/[\(\)]/g, '');
-      // Extract a friendly name from URL
-      try {
-        const urlObj = new URL(url);
-        const parts = urlObj.pathname.split('/').filter(p => p);
-        const friendlyName = parts[parts.length - 1] || urlObj.hostname;
-        return `[${friendlyName}](${url})`;
-      } catch {
-        return `[${url}](${url})`;
-      }
-    });
-  };
-
-  const handleSave = async (field: string, value: string) => {
-    try {
-      setSaving(true);
-      setSaveStatus(null);
-
-      // Convert bare URLs to markdown for content field
-      let saveValue = value;
-      if (field === 'content') {
-        saveValue = convertBareLUrlsToMarkdown(value);
-      }
-
-      const payload: any = { [field]: saveValue };
-
-      const response = await fetch(`/api/articles/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error('Failed to save');
-
-      const updated = await response.json();
-      setArticle(updated);
-      // Update content with converted URLs
-      if (field === 'content') {
-        setContent(saveValue);
-      }
+      setSelectedSources(allSelectedIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
       setSaveStatus('success');
     } catch (err) {
       setError((err as Error).message);
-      setSaveStatus('error');
     } finally {
       setSaving(false);
     }
@@ -621,9 +570,6 @@ export default function ArticleEditorPage() {
   const handleGenerateOutline = async () => {
     try {
       setSaving(true);
-      setError('');
-
-      // Call AI API to generate outline
       const response = await fetch('/api/articles/generate-outline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -634,16 +580,11 @@ export default function ArticleEditorPage() {
         }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to generate outline');
-      }
+      if (!response.ok) throw new Error('Failed to generate outline');
 
       const data = await response.json();
-      const generatedOutline = data.outline;
-
-      setOutline(generatedOutline);
-      await handleSave('outline', generatedOutline);
+      setOutline(data.outline);
+      await handleSave('outline', data.outline);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -656,8 +597,6 @@ export default function ArticleEditorPage() {
     setError('');
 
     try {
-      // Step 1: Generate draft (with brand guidelines)
-      console.log('Step 1: Generating draft...');
       const draftResponse = await fetch('/api/articles/generate-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -666,22 +605,17 @@ export default function ArticleEditorPage() {
           brief,
           outline,
           targetAudience: audience || undefined,
-          workspaceId: contextWorkspaceId, // Fetch brand profile by workspace
+          workspaceId: contextWorkspaceId,
         }),
       });
 
-      if (!draftResponse.ok) {
-        const data = await draftResponse.json();
-        throw new Error(data.error || 'Failed to generate draft');
-      }
+      if (!draftResponse.ok) throw new Error('Failed to generate draft');
 
       const draftData = await draftResponse.json();
       let generatedContent = `# ${article?.title}\n\n${draftData.draft}`;
       generatedContent = convertBareLUrlsToMarkdown(generatedContent);
       setContent(generatedContent);
 
-      // Step 2: Add links to content
-      console.log('Step 2: Generating links...');
       try {
         const linksResponse = await fetch('/api/articles/generate-links', {
           method: 'POST',
@@ -703,8 +637,6 @@ export default function ArticleEditorPage() {
         console.warn('Link generation error:', linkErr);
       }
 
-      // Step 3: Generate image prompts
-      console.log('Step 3: Generating image prompts...');
       try {
         const imagesResponse = await fetch('/api/articles/generate-images', {
           method: 'POST',
@@ -728,13 +660,10 @@ export default function ArticleEditorPage() {
         console.warn('Image generation error:', imgErr);
       }
 
-      // Step 4: Save final content (only after all APIs complete)
-      console.log('Step 4: Saving content...');
       await handleSave('content', generatedContent);
       setCurrentStage('WORKING');
       setSaveStatus('success');
     } catch (err) {
-      console.error('Generate draft error:', err);
       setError((err as Error).message);
       setSaveStatus('error');
     } finally {
@@ -1274,6 +1203,13 @@ export default function ArticleEditorPage() {
               </button>
             </div>
 
+            {/* Briefing Insights */}
+            {article.briefingSessionId && article.briefingInsights && (
+              <BriefingInsightsPanel
+                insights={article.briefingInsights}
+                smeName={article.assignedSmeName}
+              />
+            )}
 
           </div>
         </div>

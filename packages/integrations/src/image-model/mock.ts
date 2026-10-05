@@ -97,8 +97,6 @@ export class MockImageModel implements ImageModelProvider {
   private generateSVGPlaceholder(text: string, bgColor: string): string {
     // Create a simple placeholder image URL
     // Using a simple color + text as data URI
-    const encodedText = encodeURIComponent(text);
-    const encodedColor = bgColor.replace('#', '%23');
 
     // Simple SVG that works in all environments
     const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
@@ -122,25 +120,5 @@ export class MockImageModel implements ImageModelProvider {
       // Return a simple fallback color
       return `data:image/svg+xml,<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg"><rect fill="${bgColor}" width="1200" height="630"/></svg>`;
     }
-  }
-
-  private adjustColor(color: string, percent: number): string {
-    // Simple color adjustment for gradient
-    // If given #3b82f6, make it darker/lighter
-    const num = parseInt(color.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
-    const G = Math.min(255, Math.max(0, (num >> 8 & 0x00FF) + amt));
-    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
-    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
-  }
-
-  private escapeXml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   }
 }

@@ -24,7 +24,8 @@ interface Topic {
 
 interface BriefingSession {
   id: string;
-  workspaceId: string;
+  workspaceId?: string;
+  strategyId: string;
   topicId: string;
   topicTitle: string;
   smeId: string;
@@ -109,7 +110,7 @@ function BriefingContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workspaceId: workspaceId || 'default-strategy',
+          strategyId: strategyId || 'default-strategy',
           session: sessionData,
           action: 'create',
         }),
@@ -138,14 +139,14 @@ function BriefingContent() {
 
       if (stored) {
         const allSessions = JSON.parse(stored);
-        sessionsData = allSessions.filter((s: BriefingSession) => s.workspaceId === workspaceId);
+        sessionsData = allSessions.filter((s: BriefingSession) => s.strategyId === strategyId);
       }
 
       setSessions(sessionsData);
 
       // Also try API to sync (in-memory store may have more recent data)
       try {
-        const apiResponse = await fetch(`/api/briefing?workspaceId=${workspaceId}`);
+        const apiResponse = await fetch(`/api/briefing?strategyId=${strategyId}`);
         if (apiResponse.ok) {
           const data = await apiResponse.json();
           const apiSessions = data.sessions || [];
@@ -252,7 +253,7 @@ function BriefingContent() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workspaceId: workspaceId || 'default-strategy',
+          strategyId: strategyId || 'default-strategy',
           sessionId: completed.id,
           session: completed,
         }),
@@ -289,7 +290,7 @@ function BriefingContent() {
       setIsDeleting(true);
       // Delete via API
       const response = await fetch(
-        `/api/briefing?workspaceId=${workspaceId}&sessionId=${sessionToDelete.id}`,
+        `/api/briefing?strategyId=${strategyId}&sessionId=${sessionToDelete.id}`,
         { method: 'DELETE' }
       );
 
@@ -447,10 +448,10 @@ function BriefingContent() {
                   key={q.id}
                   onClick={() => setCurrentQuestionIndex(idx)}
                   className={`w-full text-left p-2 rounded text-sm cursor-pointer transition-all ${idx === currentQuestionIndex
-                      ? 'bg-signal text-white border border-signal'
-                      : currentSession.responses[q.id]
-                        ? 'bg-green-50 border border-green-200 text-green-900 hover:bg-green-100'
-                        : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    ? 'bg-signal text-white border border-signal'
+                    : currentSession.responses[q.id]
+                      ? 'bg-green-50 border border-green-200 text-green-900 hover:bg-green-100'
+                      : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                 >
                   <p className="font-medium">Q{idx + 1} {idx === currentQuestionIndex && '←'}</p>
@@ -476,7 +477,7 @@ function BriefingContent() {
           <p className="text-lg text-slate-600">Conduct one-on-one interviews with your SMEs</p>
         </div>
 
-        {/* Navigation */}
+
         <div className="mb-6 flex gap-3">
           <Link
             href={strategyId ? `/topics?strategyId=${strategyId}` : '/topics'}
@@ -492,7 +493,6 @@ function BriefingContent() {
           </Link>
         </div>
 
-        {/* Start New Session */}
         {!showStartForm && (
           <div className="mb-8">
             <button
@@ -503,6 +503,7 @@ function BriefingContent() {
             >
               + Start New Briefing Session
             </button>
+
           </div>
         )}
 
@@ -611,8 +612,8 @@ function BriefingContent() {
                     <p className="text-slate-600">Status</p>
                     <span
                       className={`inline-block px-2 py-1 rounded text-xs font-semibold ${session.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
                         }`}
                     >
                       {session.status === 'completed' ? '✓ Completed' : '⏳ In Progress'}

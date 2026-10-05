@@ -13,7 +13,6 @@ import {
   foreignKey,
   check,
 } from 'drizzle-orm/pg-core';
-import { pgvector } from 'pgvector/drizzle-orm';
 
 // ============================================================================
 // TENANT & AUTH
@@ -102,13 +101,28 @@ export const sources = pgTable('sources', {
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   type: varchar('type', { length: 32 }).notNull(), // url, document, transcript, case_study
+  title: text('title').notNull(), // Source title
+  description: text('description'), // Source description/summary
   canonicalUrl: text('canonical_url'),
   author: text('author'),
   publishedDate: timestamp('published_date'),
   contentHash: text('content_hash').notNull(), // SHA256 for deduplication
   trustTier: varchar('trust_tier', { length: 16 }).default('unreviewed'), // approved, unreviewed, quarantined
+  sensitivityLevel: varchar('sensitivity_level', { length: 16 }).default('public'), // public, internal, confidential, restricted
   citationPermission: boolean('citation_permission').default(false),
   crawlDate: timestamp('crawl_date'),
+  // Transcript/document content
+  transcriptText: text('transcript_text'),
+  fetchedContent: text('fetched_content'),
+  fetchedHeadings: jsonb('fetched_headings').default([]),
+  contentFetchedAt: timestamp('content_fetched_at'),
+  contentFetchError: text('content_fetch_error'),
+  // Brand alignment
+  brandAlignmentScore: integer('brand_alignment_score'),
+  brandAlignmentLevel: varchar('brand_alignment_level', { length: 16 }), // excellent, good, fair, poor
+  brandMatchedRules: jsonb('brand_matched_rules').default([]),
+  brandViolatedRules: jsonb('brand_violated_rules').default([]),
+  // Metadata
   metadata: jsonb('metadata').notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -141,7 +155,6 @@ export const documentChunks = pgTable('document_chunks', {
     .references(() => documents.id, { onDelete: 'cascade' }),
   chunkIndex: integer('chunk_index').notNull(),
   text: text('text').notNull(),
-  embedding: pgvector('embedding', { dimensions: 1536 }),
   metadata: jsonb('metadata').notNull().default({}),
 });
 

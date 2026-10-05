@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
+import { extractInsights } from '@/lib/briefing-insights';
 
 interface Topic {
   id: string;
@@ -595,6 +596,53 @@ function TopicsContent() {
         }
       }
 
+      // Check for completed briefing session if SME is assigned
+      let briefingSessionId: string | null = null;
+      let briefingInsights: any = {};
+
+      if (topic.assignedSmeId) {
+        // Load briefing sessions from localStorage
+        const stored = localStorage.getItem('briefing_sessions');
+        if (stored) {
+          const allSessions = JSON.parse(stored);
+          // Find a completed briefing session for this SME and strategy
+          const completedSession = allSessions.find(
+            (s: any) =>
+              s.strategyId === strategyId &&
+              s.smeId === topic.assignedSmeId &&
+              s.status === 'completed'
+          );
+
+          if (completedSession) {
+            briefingSessionId = completedSession.id;
+            // Extract structured insights from the responses
+            const questionsData = completedSession.questions || [
+              { id: 'q1', text: 'What is the most common misconception about this topic?', order: 1 },
+              { id: 'q2', text: 'What are the key best practices or approaches?', order: 2 },
+              { id: 'q3', text: 'Can you share a real-world example or case study?', order: 3 },
+              { id: 'q4', text: 'What are the common pitfalls to avoid?', order: 4 },
+              { id: 'q5', text: 'What tools or resources do you recommend?', order: 5 },
+            ];
+            briefingInsights = extractInsights(completedSession.responses || {}, questionsData);
+          } else {
+            // Check if there's an incomplete briefing session
+            const incompleteSession = allSessions.find(
+              (s: any) =>
+                s.strategyId === strategyId &&
+                s.smeId === topic.assignedSmeId &&
+                s.status !== 'completed'
+            );
+            if (incompleteSession) {
+              setError(
+                `⚠️ SME briefing session is incomplete (${
+                  Object.keys(incompleteSession.responses || {}).length
+                } questions answered). Complete the briefing before creating the article, or proceed without it.`
+              );
+            }
+          }
+        }
+      }
+
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -606,6 +654,8 @@ function TopicsContent() {
           outline: '',
           assignedSmeId: topic.assignedSmeId || null,
           assignedSmeName: topic.assignedSmeName || null,
+          briefingSessionId,
+          briefingInsights: briefingInsights.positions?.length > 0 ? briefingInsights : null,
         }),
       });
 

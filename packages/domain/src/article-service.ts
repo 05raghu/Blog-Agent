@@ -36,6 +36,7 @@ export class ArticleService {
     console.log(`[ArticleService] Generating draft for: ${brief.title}`);
 
     const draft = await this.textModel.generateDraft({
+      title: brief.title,
       brief: brief.brief,
       outline: brief.outline,
       voiceProfile: brief.voiceProfile,

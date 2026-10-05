@@ -33,7 +33,6 @@ export function StageWorkflow({ currentStage, onStageChange, canTransition }: St
                 style={{
                   backgroundColor: stageColor,
                   opacity: isPassed || isActive ? 1 : 0.5,
-                  ringColor: stageColor,
                 }}
                 onClick={() => canMove && onStageChange(stage)}
               >
