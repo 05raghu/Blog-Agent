@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signUp } from '@/lib/supabase-client';
+import { signUp, getSession } from '@/lib/supabase-client';
 
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,7 +20,7 @@ export default function SignupPage() {
     setError('');
     setSuccess('');
 
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !workspaceName) {
       setError('All fields are required');
       return;
     }
@@ -36,17 +37,57 @@ export default function SignupPage() {
 
     try {
       setLoading(true);
-      const { error } = await signUp(email, password);
 
-      if (error) {
-        setError(error.message || 'Failed to sign up');
+      // Step 1: Create user account
+      const { error: signupError } = await signUp(email, password);
+
+      if (signupError) {
+        setError(signupError.message || 'Failed to sign up');
         return;
       }
 
-      setSuccess('Account created! Check your email to confirm your account.');
+      // Step 2: Get session with new user
+      const session = await getSession();
+      if (!session) {
+        setError('Account created but failed to get session. Please log in.');
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 2000);
+        return;
+      }
+
+      // Step 3: Create workspace for user
+      const workspaceSlug = workspaceName
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const workspaceResponse = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          workspaceName,
+          workspaceSlug,
+        }),
+      });
+
+      const workspaceData = await workspaceResponse.json();
+
+      if (!workspaceResponse.ok) {
+        setError(workspaceData.error || 'Failed to create workspace');
+        return;
+      }
+
+      setSuccess('Account and workspace created! Redirecting...');
       setTimeout(() => {
-        router.push('/auth/login');
-      }, 2000);
+        router.push('/overview');
+      }, 1500);
     } catch (err) {
       setError((err as Error).message || 'An error occurred');
     } finally {
@@ -80,6 +121,23 @@ export default function SignupPage() {
 
           {/* Signup Form */}
           <form onSubmit={handleSignup} className="space-y-4">
+            {/* Workspace Name */}
+            <div>
+              <label htmlFor="workspaceName" className="block text-sm font-medium text-slate-900 mb-1">
+                Workspace Name
+              </label>
+              <input
+                id="workspaceName"
+                type="text"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                placeholder="e.g., Codewave Marketing"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-signal focus:border-transparent"
+                disabled={loading}
+              />
+              <p className="text-xs text-slate-500 mt-1">Your workspace name for managing content</p>
+            </div>
+
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-900 mb-1">
