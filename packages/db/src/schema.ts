@@ -19,7 +19,7 @@ import {
 // ============================================================================
 
 export const workspaces = pgTable('workspaces', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: text('id').primaryKey(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   description: text('description'),
@@ -30,7 +30,7 @@ export const workspaces = pgTable('workspaces', {
 
 export const memberships = pgTable('memberships', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull(), // Supabase auth.users.id
@@ -62,10 +62,10 @@ export const strategyVersions = pgTable('strategy_versions', {
 
 export const contentVerticals = pgTable('content_verticals', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
-  strategyVersionId: uuid('strategy_version_id')
+  strategyVersionId: text('strategy_version_id')
     .notNull()
     .references(() => strategyVersions.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
@@ -126,7 +126,7 @@ export const sources = pgTable('sources', {
 
 export const documents = pgTable('documents', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   sourceId: uuid('source_id').references(() => sources.id, { onDelete: 'cascade' }),
@@ -143,7 +143,7 @@ export const documents = pgTable('documents', {
 
 export const documentChunks = pgTable('document_chunks', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   documentId: uuid('document_id')
@@ -223,7 +223,7 @@ export const articleDocuments = pgTable('article_documents', {
 
 export const urlAliases = pgTable('url_aliases', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   articleId: uuid('article_id')
@@ -276,7 +276,7 @@ export const interviewSessions = pgTable('interview_sessions', {
 
 export const insights = pgTable('insights', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   interviewSessionId: uuid('interview_session_id')
@@ -332,7 +332,7 @@ export const approvals = pgTable('approvals', {
 
 export const claims = pgTable('claims', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   articleId: uuid('article_id')
@@ -353,7 +353,7 @@ export const claims = pgTable('claims', {
 
 export const assets = pgTable('assets', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   articleId: uuid('article_id')
@@ -429,7 +429,7 @@ export const metricSnapshots = pgTable('metric_snapshots', {
 
 export const contentTouches = pgTable('content_touches', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   articleId: uuid('article_id')
@@ -446,7 +446,7 @@ export const contentTouches = pgTable('content_touches', {
 
 export const leadEvents = pgTable('lead_events', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   articleId: uuid('article_id')
@@ -492,7 +492,7 @@ export const healingProposals = pgTable('healing_proposals', {
 
 export const jobRuns = pgTable('job_runs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   jobType: varchar('job_type', { length: 64 }).notNull(),
@@ -508,7 +508,7 @@ export const jobRuns = pgTable('job_runs', {
 
 export const auditEvents = pgTable('audit_events', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   actor: text('actor').notNull(), // Supabase user_id or service name
@@ -530,7 +530,7 @@ export const auditEvents = pgTable('audit_events', {
 
 export const integrationConnections = pgTable('integration_connections', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
+  workspaceId: text('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
   provider: varchar('provider', { length: 64 }).notNull(), // wordpress, ga4, gsc, anthropic, etc.

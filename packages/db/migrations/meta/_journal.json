@@ -22,6 +22,13 @@
       "when": 1791282510291,
       "tag": "0002_flippant_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1791295792090,
+      "tag": "0003_flimsy_stellaris",
+      "breakpoints": true
     }
   ]
 }
