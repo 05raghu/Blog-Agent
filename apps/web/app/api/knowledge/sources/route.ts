@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
     if (sourceRepository) {
       try {
         await sourceRepository.create({
+          id: sourceId,
           workspaceId: strategyId,
           type,
           title,

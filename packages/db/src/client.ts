@@ -6,16 +6,25 @@ import * as schema from './schema';
 // Get database URL from environment
 const DATABASE_URL = process.env.DATABASE_URL;
 
-if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
+let db: any = null;
+let pool: Pool | null = null;
+
+if (DATABASE_URL) {
+  try {
+    // Create postgres pool
+    pool = new Pool({
+      connectionString: DATABASE_URL,
+    });
+
+    // Create drizzle instance
+    db = drizzle(pool, { schema });
+    console.log('[DB] Database client initialized with Supabase');
+  } catch (error) {
+    console.error('[DB] Failed to initialize database client:', error);
+  }
+} else {
+  console.warn('[DB] DATABASE_URL not set - database operations will fail');
 }
 
-// Create postgres pool
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-});
-
-// Create drizzle instance
-export const db = drizzle(pool, { schema });
-
+export { db };
 export type Database = typeof db;

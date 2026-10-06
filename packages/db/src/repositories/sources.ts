@@ -4,6 +4,7 @@ import { sources } from '../schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface CreateSourceInput {
+  id: string;
   workspaceId: string;
   type: 'url' | 'document' | 'transcript' | 'case_study';
   title: string;
@@ -44,6 +45,7 @@ export class SourceRepository {
     const result = await db
       .insert(sources)
       .values({
+        id: input.id,
         workspaceId: input.workspaceId,
         type: input.type,
         title: input.title,

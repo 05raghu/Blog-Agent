@@ -96,10 +96,8 @@ export const smeProfiles = pgTable('sme_profiles', {
 // ============================================================================
 
 export const sources = pgTable('sources', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
   type: varchar('type', { length: 32 }).notNull(), // url, document, transcript, case_study
   title: text('title').notNull(), // Source title
   description: text('description'), // Source description/summary
