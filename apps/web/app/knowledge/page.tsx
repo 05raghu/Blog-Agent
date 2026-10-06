@@ -679,7 +679,8 @@ function KnowledgeContent() {
 
     try {
       setIsDeleting(true);
-      const res = await fetch(`/api/knowledge/sources/${sourceToDelete.id}`, {
+      const strategyId = searchParams.get('strategyId');
+      const res = await fetch(`/api/knowledge/sources/${sourceToDelete.id}?strategyId=${strategyId}`, {
         method: 'DELETE',
       });
 
