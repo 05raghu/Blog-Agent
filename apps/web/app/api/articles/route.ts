@@ -1,8 +1,20 @@
 // API route: GET/POST /api/articles — Manage articles in content calendar
+// Uses database with fallback to in-memory store for development
 
 import { NextRequest, NextResponse } from 'next/server';
 import { articleStore } from './store';
 import { getSMEsByWorkspace, updateSME } from '@/lib/sme-store';
+
+// Try to load database client; it will be null if DATABASE_URL not set
+let articleRepository: any = null;
+try {
+  if (process.env.DATABASE_URL) {
+    const dbModule = require('@blog-agent/db');
+    articleRepository = dbModule.articleRepository;
+  }
+} catch (e) {
+  console.warn('[API] Database not available, using in-memory store');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Create article
     const articleId = `article_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const contentId = `content_${Date.now()}`;
 
     // No auto-generated outline - user generates it from the brief
     const defaultOutline = outline || '';
@@ -40,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const article = {
       id: articleId,
-      contentId: `content_${Date.now()}`, // Permanent identifier for tracking
+      contentId, // Permanent identifier for tracking
       topicId,
       strategyId,
       briefingSessionId: briefingSessionId || null, // Link to SME briefing session
@@ -63,7 +76,29 @@ export async function POST(request: NextRequest) {
       blockedReason: null,
     };
 
-    articleStore.set(articleId, article);
+    if (articleRepository) {
+      try {
+        await articleRepository.create({
+          id: articleId,
+          workspaceId,
+          contentId,
+          topicId,
+          strategyId,
+          topicTitle: '',
+          contentClass: 'expert_pov',
+          assignedSME: assignedSmeId,
+          owner: 'system',
+          status: 'not_started',
+          plannedPublishDate: null,
+        });
+      } catch (dbError) {
+        console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
+        articleStore.set(articleId, article);
+      }
+    } else {
+      articleStore.set(articleId, article);
+    }
+
     console.log(`[API] Created article ${articleId}. Store now has ${articleStore.size} articles.`);
 
     // Track SME contribution (increment pastContributions)
@@ -112,34 +147,47 @@ export async function GET(request: NextRequest) {
   try {
     const strategyId = request.nextUrl.searchParams.get('strategyId');
     const articleId = request.nextUrl.searchParams.get('id');
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || 'default-workspace';
 
     if (articleId) {
       // Get single article
-      const article = articleStore.get(articleId);
+      let article;
+
+      if (articleRepository) {
+        try {
+          article = await articleRepository.getById(workspaceId, articleId);
+        } catch (dbError) {
+          console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
+          article = articleStore.get(articleId);
+        }
+      } else {
+        article = articleStore.get(articleId);
+      }
+
       if (!article) {
         return NextResponse.json({ error: 'Article not found' }, { status: 404 });
       }
 
       return NextResponse.json({
         id: article.id,
-        contentId: article.contentId,
+        contentId: (article as any).contentId || article.id,
         title: article.title,
-        brief: article.brief,
-        outline: article.outline,
+        brief: (article as any).brief || '',
+        outline: (article as any).outline || '',
         content: (article as any).content || '',
         status: article.status,
-        topicId: article.topicId,
-        strategyId: article.strategyId,
-        briefingSessionId: article.briefingSessionId || null,
-        briefingInsights: article.briefingInsights || {},
-        assignedSME: article.assignedSME,
+        topicId: (article as any).topicId || '',
+        strategyId: (article as any).strategyId || '',
+        briefingSessionId: (article as any).briefingSessionId || null,
+        briefingInsights: (article as any).briefingInsights || {},
+        assignedSME: (article as any).assignedSME,
         owner: article.owner,
         plannedPublishDate: article.plannedPublishDate,
         publishDate: (article as any).publishDate,
-        wordCount: article.wordCount,
+        wordCount: (article as any).wordCount || 0,
         linkedSources: (article as any).linkedSources || [],
-        pausedReason: article.pausedReason,
-        blockedReason: article.blockedReason,
+        pausedReason: (article as any).pausedReason,
+        blockedReason: (article as any).blockedReason,
         createdAt: article.createdAt,
         updatedAt: article.updatedAt,
       });
@@ -150,23 +198,66 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all articles for strategy (max 5 concurrent)
-    const articles = Array.from(articleStore.values())
-      .filter((a) => a.strategyId === strategyId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((a) => ({
-        id: a.id,
-        contentId: a.contentId,
-        title: a.title,
-        status: a.status,
-        topicId: a.topicId,
-        strategyId: a.strategyId,
-        assignedSME: a.assignedSME,
-        plannedPublishDate: a.plannedPublishDate,
-        wordCount: a.wordCount,
-        linkedSources: (a as any).linkedSources || [],
-        createdAt: a.createdAt,
-        updatedAt: a.updatedAt,
-      }));
+    let articles;
+
+    if (articleRepository) {
+      try {
+        const dbArticles = await articleRepository.listByStrategy(workspaceId, strategyId);
+        articles = dbArticles
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map((a: any) => ({
+            id: a.id,
+            contentId: a.contentId,
+            title: a.title || '',
+            status: a.status,
+            topicId: a.topicId,
+            strategyId: a.strategyId,
+            assignedSME: a.assignedSME,
+            plannedPublishDate: a.plannedPublishDate,
+            wordCount: 0,
+            linkedSources: [],
+            createdAt: a.createdAt,
+            updatedAt: a.updatedAt,
+          }));
+      } catch (dbError) {
+        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
+        articles = Array.from(articleStore.values())
+          .filter((a) => a.strategyId === strategyId)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map((a) => ({
+            id: a.id,
+            contentId: (a as any).contentId,
+            title: a.title,
+            status: a.status,
+            topicId: (a as any).topicId,
+            strategyId: (a as any).strategyId,
+            assignedSME: (a as any).assignedSME,
+            plannedPublishDate: a.plannedPublishDate,
+            wordCount: (a as any).wordCount || 0,
+            linkedSources: (a as any).linkedSources || [],
+            createdAt: a.createdAt,
+            updatedAt: a.updatedAt,
+          }));
+      }
+    } else {
+      articles = Array.from(articleStore.values())
+        .filter((a) => a.strategyId === strategyId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .map((a) => ({
+          id: a.id,
+          contentId: (a as any).contentId,
+          title: a.title,
+          status: a.status,
+          topicId: (a as any).topicId,
+          strategyId: (a as any).strategyId,
+          assignedSME: (a as any).assignedSME,
+          plannedPublishDate: a.plannedPublishDate,
+          wordCount: (a as any).wordCount || 0,
+          linkedSources: (a as any).linkedSources || [],
+          createdAt: a.createdAt,
+          updatedAt: a.updatedAt,
+        }));
+    }
 
     return NextResponse.json({
       strategyId,

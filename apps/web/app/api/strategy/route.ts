@@ -1,12 +1,24 @@
 // API route: POST/GET /api/strategy — Manage editorial strategy
+// Uses database with fallback to in-memory store for development
 
 import { NextRequest, NextResponse } from 'next/server';
 import { strategyStore } from '@/lib/strategy-store';
 
+// Try to load database client; it will be null if DATABASE_URL not set
+let strategyRepository: any = null;
+try {
+  if (process.env.DATABASE_URL) {
+    const dbModule = require('@blog-agent/db');
+    strategyRepository = dbModule.strategyRepository;
+  }
+} catch (e) {
+  console.warn('[API] Database not available, using in-memory store');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, offerings, targetIcps, geographies, competitors, contentMix, description } = body;
+    const { title, offerings, targetIcps, icps, geographies, competitors, contentMix, description, workspaceId = 'default-workspace' } = body;
 
     if (!offerings || !Array.isArray(offerings)) {
       return NextResponse.json(
@@ -15,13 +27,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const strategyId = `strategy_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
     // Create strategy version
     const strategyVersion: any = {
-      id: `strategy_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      workspaceId: 'default-workspace', // TODO: use actual workspace from auth
+      id: strategyId,
+      workspaceId,
+      version: 1,
       title: title || 'Default Strategy',
       offerings,
-      targetIcps: targetIcps || [],
+      icps: icps || targetIcps || [],
       geographies: geographies || [],
       competitors: competitors || [],
       contentMix: contentMix || {},
@@ -37,13 +52,36 @@ export async function POST(request: NextRequest) {
       createdBy: 'system', // TODO: use actual user from auth
     };
 
-    strategyStore.set(strategyVersion.id, strategyVersion);
+    if (strategyRepository) {
+      try {
+        await strategyRepository.create({
+          id: strategyId,
+          workspaceId,
+          version: 1,
+          offerings,
+          icps: icps || targetIcps || [],
+          geographies: geographies || [],
+          competitors: competitors || [],
+          editorialVerticals: [],
+          contentMix: contentMix || {},
+          qualityThresholds: {},
+          sourcePolicy: {},
+          approvalPolicy: {},
+          smePolicies: {},
+        });
+      } catch (dbError) {
+        console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
+        strategyStore.set(strategyId, strategyVersion);
+      }
+    } else {
+      strategyStore.set(strategyId, strategyVersion);
+    }
 
     return NextResponse.json({
       id: strategyVersion.id,
       title: strategyVersion.title,
       offerings: strategyVersion.offerings,
-      targetIcps: strategyVersion.targetIcps,
+      targetIcps: strategyVersion.icps,
       geographies: strategyVersion.geographies,
       competitors: strategyVersion.competitors,
       contentMix: strategyVersion.contentMix,
@@ -61,34 +99,83 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const strategyId = request.nextUrl.searchParams.get('id');
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || 'default-workspace';
 
     if (!strategyId) {
-      // Return all strategies
-      const strategies = Array.from(strategyStore.values()).map((s) => ({
-        id: s.id,
-        title: s.title,
-        offerings: s.offerings,
-        targetIcps: s.targetIcps,
-        createdAt: s.createdAt,
-      }));
+      // Return all strategies for workspace
+      let strategies;
+
+      if (strategyRepository) {
+        try {
+          const dbStrategies = await strategyRepository.listByWorkspace(workspaceId);
+          strategies = dbStrategies.map((s: any) => ({
+            id: s.id,
+            title: s.title || 'Default Strategy',
+            offerings: s.offerings || [],
+            targetIcps: s.icps || [],
+            geographies: s.geographies || [],
+            competitors: s.competitors || [],
+            contentMix: s.contentMix || {},
+            createdAt: s.createdAt,
+          }));
+        } catch (dbError) {
+          console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
+          strategies = Array.from(strategyStore.values()).map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            offerings: s.offerings,
+            targetIcps: s.targetIcps,
+            geographies: s.geographies,
+            competitors: s.competitors,
+            contentMix: s.contentMix,
+            createdAt: s.createdAt,
+          }));
+        }
+      } else {
+        strategies = Array.from(strategyStore.values()).map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          offerings: s.offerings,
+          targetIcps: s.targetIcps,
+          geographies: s.geographies,
+          competitors: s.competitors,
+          contentMix: s.contentMix,
+          createdAt: s.createdAt,
+        }));
+      }
 
       return NextResponse.json({ strategies });
     }
 
     // Return specific strategy
-    const strategy = strategyStore.get(strategyId);
+    let strategy;
+
+    if (strategyRepository) {
+      try {
+        strategy = await strategyRepository.getById(workspaceId, strategyId);
+      } catch (dbError) {
+        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
+        strategy = strategyStore.get(strategyId);
+      }
+    } else {
+      strategy = strategyStore.get(strategyId);
+    }
+
     if (!strategy) {
       return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
     }
 
+    // Handle both database (icps) and in-memory (targetIcps) field names
+    const targetIcps = (strategy as any).icps || (strategy as any).targetIcps || [];
+
     return NextResponse.json({
       id: strategy.id,
-      title: strategy.title,
-      offerings: strategy.offerings,
-      targetIcps: strategy.targetIcps,
-      geographies: strategy.geographies,
-      competitors: strategy.competitors,
-      contentMix: strategy.contentMix,
+      title: strategy.title || 'Default Strategy',
+      offerings: strategy.offerings || [],
+      targetIcps,
+      geographies: strategy.geographies || [],
+      competitors: strategy.competitors || [],
+      contentMix: strategy.contentMix || {},
       createdAt: strategy.createdAt,
     });
   } catch (error) {
