@@ -15,6 +15,13 @@
       "when": 1791281879272,
       "tag": "0001_jazzy_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1791282510291,
+      "tag": "0002_flippant_the_twelve",
+      "breakpoints": true
     }
   ]
 }

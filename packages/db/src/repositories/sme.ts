@@ -7,6 +7,8 @@ export interface CreateSMEInput {
   id: string;
   workspaceId: string;
   userId: string;
+  name: string;
+  email?: string;
   expertise?: string[];
   biography?: string;
   preferredTopics?: string[];
@@ -16,6 +18,8 @@ export interface CreateSMEInput {
 }
 
 export interface UpdateSMEInput {
+  name?: string;
+  email?: string;
   expertise?: string[];
   biography?: string;
   preferredTopics?: string[];
@@ -32,6 +36,8 @@ export class SMERepository {
         id: input.id as any,
         workspaceId: input.workspaceId as any,
         userId: input.userId,
+        name: input.name,
+        email: input.email,
         expertise: input.expertise || [],
         biography: input.biography,
         preferredTopics: input.preferredTopics || [],

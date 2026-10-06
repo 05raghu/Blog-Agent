@@ -77,6 +77,8 @@ export const smeProfiles = pgTable('sme_profiles', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),
   userId: text('user_id').notNull(), // Supabase auth.users.id
+  name: text('name').notNull(), // SME full name
+  email: text('email'), // SME email
   expertise: jsonb('expertise').notNull().default([]), // Topic tags
   biography: text('biography'),
   preferredTopics: jsonb('preferred_topics').notNull().default([]),

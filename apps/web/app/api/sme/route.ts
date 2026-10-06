@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
           id: smeId,
           workspaceId,
           userId: sme.userId || sme.email,
+          name: sme.name,
+          email: sme.email,
           expertise: sme.expertise || [],
           biography: sme.biography,
           preferredTopics: sme.preferredTopics || [],
@@ -135,6 +137,8 @@ export async function PUT(request: NextRequest) {
     if (smeRepository) {
       try {
         updated = await smeRepository.update(workspaceId, smeId, {
+          name: sme?.name,
+          email: sme?.email,
           expertise: sme?.expertise,
           biography: sme?.biography,
           preferredTopics: sme?.preferredTopics,
