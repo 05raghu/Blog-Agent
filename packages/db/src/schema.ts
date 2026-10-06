@@ -44,10 +44,8 @@ export const memberships = pgTable('memberships', {
 // ============================================================================
 
 export const strategyVersions = pgTable('strategy_versions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
   version: integer('version').notNull(), // 1, 2, 3, ...
   offerings: jsonb('offerings').notNull().default([]), // Product/service list
   icps: jsonb('icps').notNull().default([]), // Ideal customer profiles
@@ -76,10 +74,8 @@ export const contentVerticals = pgTable('content_verticals', {
 });
 
 export const smeProfiles = pgTable('sme_profiles', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
   userId: text('user_id').notNull(), // Supabase auth.users.id
   expertise: jsonb('expertise').notNull().default([]), // Topic tags
   biography: text('biography'),
@@ -194,7 +190,7 @@ export const topicCandidates = pgTable('topic_candidates', {
 });
 
 export const articles = pgTable('articles', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(), // default-workspace for now
   contentId: text('content_id').notNull(), // Permanent identifier
   topicId: text('topic_id').notNull(), // Topic ID from topicCandidates
