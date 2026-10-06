@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSMEsByWorkspace, addSME, updateSME, deleteSME } from '@/lib/sme-store';
+import { getWorkspaceContext } from '@/lib/workspace-auth';
 
 // Try to load database client; it will be null if DATABASE_URL not set
 let smeRepository: any = null;
@@ -18,8 +19,16 @@ try {
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const workspaceId = searchParams.get('workspaceId') || 'default-workspace';
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
+    const workspaceId = workspace.workspaceId;
 
     let smes;
 
@@ -63,8 +72,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { workspaceId = 'default-workspace', sme } = body;
+    const { sme } = body;
 
     if (!sme?.name || !sme?.email) {
       return NextResponse.json(
@@ -79,8 +97,8 @@ export async function POST(request: NextRequest) {
       try {
         await smeRepository.create({
           id: smeId,
-          workspaceId,
-          userId: sme.userId || sme.email,
+          workspaceId: workspace.workspaceId,
+          userId: sme.userId || workspace.userId,
           name: sme.name,
           email: sme.email,
           expertise: sme.expertise || [],
@@ -92,17 +110,17 @@ export async function POST(request: NextRequest) {
         });
       } catch (dbError) {
         console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
-        addSME(workspaceId, {
+        addSME(workspace.workspaceId, {
           ...sme,
           id: smeId,
-          workspaceId,
+          workspaceId: workspace.workspaceId,
         });
       }
     } else {
-      addSME(workspaceId, {
+      addSME(workspace.workspaceId, {
         ...sme,
         id: smeId,
-        workspaceId,
+        workspaceId: workspace.workspaceId,
       });
     }
 
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
       sme: {
         id: smeId,
         ...sme,
-        workspaceId,
+        workspaceId: workspace.workspaceId,
       },
     });
   } catch (error) {
@@ -125,8 +143,18 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { workspaceId = 'default-workspace', smeId, sme } = body;
+    const { smeId, sme } = body;
+    const workspaceId = workspace.workspaceId;
 
     if (!smeId) {
       return NextResponse.json({ error: 'SME ID is required' }, { status: 400 });
@@ -179,8 +207,17 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
-    const workspaceId = searchParams.get('workspaceId') || 'default-workspace';
+    const workspaceId = workspace.workspaceId;
     const smeId = searchParams.get('smeId');
 
     if (!smeId) {

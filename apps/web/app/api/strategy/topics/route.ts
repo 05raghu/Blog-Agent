@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreAndBuildTopic, persistTopic, topicStore } from '@/lib/topic-store';
+import { getWorkspaceContext } from '@/lib/workspace-auth';
 
 // Try to load database client; it will be null if DATABASE_URL not set
 let topicRepository: any = null;
@@ -17,6 +18,15 @@ try {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { strategyId, strategy, topic, action } = body;
 
@@ -44,7 +54,7 @@ export async function POST(request: NextRequest) {
         try {
           await topicRepository.create({
             id: scoredTopic.id,
-            workspaceId: 'default-workspace',
+            workspaceId: workspace.workspaceId,
             strategyId,
             title: scoredTopic.title,
             summary: scoredTopic.summary,
@@ -73,7 +83,7 @@ export async function POST(request: NextRequest) {
       let updatedList;
       if (topicRepository) {
         try {
-          const dbTopics = await topicRepository.listByStrategy('default-workspace', strategyId);
+          const dbTopics = await topicRepository.listByStrategy(workspace.workspaceId, strategyId);
           updatedList = dbTopics;
         } catch (dbError) {
           updatedList = topicStore.get(strategyId) || [];
@@ -105,8 +115,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const strategyId = request.nextUrl.searchParams.get('strategyId');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || 'default-workspace';
+    const workspaceId = workspace.workspaceId;
 
     if (!strategyId) {
       return NextResponse.json({ error: 'strategyId is required' }, { status: 400 });

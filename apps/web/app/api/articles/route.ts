@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { articleStore } from './store';
 import { getSMEsByWorkspace, updateSME } from '@/lib/sme-store';
+import { getWorkspaceContext } from '@/lib/workspace-auth';
 
 // Try to load database client; it will be null if DATABASE_URL not set
 let articleRepository: any = null;
@@ -18,8 +19,18 @@ try {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, briefingSessionId, briefingInsights, workspaceId = 'default-workspace' } = body;
+    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, briefingSessionId, briefingInsights } = body;
+    const workspaceId = workspace.workspaceId;
 
     if (!topicId || !strategyId) {
       return NextResponse.json(
@@ -145,9 +156,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Get workspace from authenticated user
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const strategyId = request.nextUrl.searchParams.get('strategyId');
     const articleId = request.nextUrl.searchParams.get('id');
-    const workspaceId = request.nextUrl.searchParams.get('workspaceId') || 'default-workspace';
+    const workspaceId = workspace.workspaceId;
 
     if (articleId) {
       // Get single article
