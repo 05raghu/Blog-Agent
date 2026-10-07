@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signUp, getSession } from '@/lib/supabase-client';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -38,25 +37,7 @@ export default function SignupPage() {
     try {
       setLoading(true);
 
-      // Step 1: Create user account
-      const { error: signupError } = await signUp(email, password);
-
-      if (signupError) {
-        setError(signupError.message || 'Failed to sign up');
-        return;
-      }
-
-      // Step 2: Get session with new user
-      const session = await getSession();
-      if (!session) {
-        setError('Account created but failed to get session. Please log in.');
-        setTimeout(() => {
-          router.push('/auth/login');
-        }, 2000);
-        return;
-      }
-
-      // Step 3: Create workspace for user
+      // Generate workspace slug from workspace name
       const workspaceSlug = workspaceName
         .toLowerCase()
         .trim()
@@ -65,24 +46,29 @@ export default function SignupPage() {
         .replace(/-+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-      const workspaceResponse = await fetch('/api/workspaces', {
+      // Call custom auth signup endpoint
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
+          email,
+          password,
           workspaceName,
           workspaceSlug,
         }),
       });
 
-      const workspaceData = await workspaceResponse.json();
+      const data = await response.json();
 
-      if (!workspaceResponse.ok) {
-        setError(workspaceData.error || 'Failed to create workspace');
+      if (!response.ok) {
+        setError(data.error || 'Failed to sign up');
         return;
       }
+
+      // Store token in localStorage
+      localStorage.setItem('authToken', data.token);
 
       setSuccess('Account and workspace created! Redirecting...');
       setTimeout(() => {
@@ -98,7 +84,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-5">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-ink-950 mb-2">Blog Agent</h1>
@@ -218,14 +204,6 @@ export default function SignupPage() {
             <div className="flex-1 h-px bg-slate-200"></div>
           </div>
 
-          {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-xs text-blue-900 font-medium mb-2">💡 Demo Mode</p>
-            <p className="text-xs text-blue-800">
-              Sign up with any email and password. Email verification is required to complete the signup.
-            </p>
-          </div>
-
           {/* Sign In Link */}
           <p className="text-center text-sm text-slate-600">
             Already have an account?{' '}
@@ -237,7 +215,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-slate-500">
-          <p>Blog Agent v1.0 • Powered by Supabase Auth</p>
+          <p>Blog Agent v1.0 • Custom Auth</p>
         </div>
       </div>
     </div>

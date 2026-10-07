@@ -24,7 +24,7 @@ export interface WorkspaceContext {
 
 /**
  * Decode JWT payload without verification (for reading claims)
- * In production, you'd verify the signature against Supabase public key
+ * Handles both custom JWT and Supabase Auth JWT formats
  */
 function decodeJWT(token: string): Record<string, any> | null {
   try {
@@ -34,7 +34,9 @@ function decodeJWT(token: string): Record<string, any> | null {
 
     // Decode the payload (second part)
     const payload = parts[1];
-    const decoded = Buffer.from(payload, 'base64').toString('utf-8');
+    // Add padding if needed for base64 decoding
+    const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+    const decoded = Buffer.from(padded, 'base64').toString('utf-8');
     return JSON.parse(decoded);
   } catch (error) {
     console.error('[JWT Decode] Error:', error);

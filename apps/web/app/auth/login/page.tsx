@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signIn } from '@/lib/supabase-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,12 +24,28 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      const { error } = await signIn(email, password);
 
-      if (error) {
-        setError(error.message || 'Failed to sign in');
+      // Call custom auth login endpoint
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to sign in');
         return;
       }
+
+      // Store token in localStorage
+      localStorage.setItem('authToken', data.token);
 
       setSuccess('Login successful! Redirecting...');
       setTimeout(() => {
@@ -119,21 +134,9 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-slate-200"></div>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-xs text-blue-900 font-medium mb-2">🧪 Demo Mode</p>
-            <p className="text-xs text-blue-800 mb-2">
-              This is a demo environment. Supabase Auth is configured but you can also test with:
-            </p>
-            <div className="text-xs text-blue-800 space-y-1 font-mono">
-              <p>Email: <span className="bg-blue-100 px-2 py-1 rounded">demo@example.com</span></p>
-              <p>Password: <span className="bg-blue-100 px-2 py-1 rounded">demo123</span></p>
-            </div>
-          </div>
-
           {/* Sign Up Link */}
           <p className="text-center text-sm text-slate-600">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/auth/signup" className="text-signal font-medium hover:underline">
               Sign up
             </Link>
@@ -142,7 +145,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-slate-500">
-          <p>Blog Agent v1.0 • Powered by Supabase Auth</p>
+          <p>Blog Agent v1.0 • Custom Auth</p>
         </div>
       </div>
     </div>
