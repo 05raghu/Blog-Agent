@@ -36,6 +36,20 @@
       "when": 1791363575965,
       "tag": "0004_glamorous_marvel_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1791789097719,
+      "tag": "0005_goofy_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1729065600000,
+      "tag": "0006_add_strategy_title_description",
+      "breakpoints": true
     }
   ]
 }

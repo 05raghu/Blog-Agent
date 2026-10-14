@@ -55,6 +55,8 @@ export const strategyVersions = pgTable('strategy_versions', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),
   version: integer('version').notNull(), // 1, 2, 3, ...
+  title: text('title'),
+  description: text('description'),
   offerings: jsonb('offerings').notNull().default([]), // Product/service list
   icps: jsonb('icps').notNull().default([]), // Ideal customer profiles
   geographies: jsonb('geographies').notNull().default([]),
@@ -93,6 +95,22 @@ export const smeProfiles = pgTable('sme_profiles', {
   capacityHoursPerMonth: integer('capacity_hours_per_month').default(3),
   attributionRules: jsonb('attribution_rules').notNull().default({}),
   pastContributions: jsonb('past_contributions').notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const brandProfiles = pgTable('brand_profiles', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  guidelines: text('guidelines').default(''),
+  strongExemplars: jsonb('strong_exemplars').notNull().default([]),
+  weakExemplars: jsonb('weak_exemplars').notNull().default([]),
+  principles: jsonb('principles').notNull().default([]),
+  desiredPatterns: jsonb('desired_patterns').notNull().default([]),
+  prohibitedPatterns: jsonb('prohibited_patterns').notNull().default([]),
+  terminology: jsonb('terminology').notNull().default({}),
+  toneBoundaries: jsonb('tone_boundaries').notNull().default([]),
+  approvalStatus: varchar('approval_status', { length: 16 }).default('pending'), // pending | approved
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -201,18 +219,40 @@ export const topicCandidates = pgTable('topic_candidates', {
 
 export const articles = pgTable('articles', {
   id: text('id').primaryKey(),
-  workspaceId: text('workspace_id').notNull(), // default-workspace for now
-  contentId: text('content_id').notNull(), // Permanent identifier
-  topicId: text('topic_id').notNull(), // Topic ID from topicCandidates
-  strategyId: text('strategy_id').notNull(), // Strategy ID
-  topicTitle: text('topic_title'), // Cached topic title for quick access
-  contentClass: varchar('content_class', { length: 32 }).default('expert_pov'), // expert_pov, search_led, commercial
-  assignedSME: text('assigned_sme'), // SME user ID
-  owner: text('owner').notNull(), // Marketer user ID
-  status: varchar('status', { length: 32 }).default('not_started'), // see stage state machine
-  plannedPublishDate: timestamp('planned_publish_date'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  workspace_id: text('workspace_id').notNull(),
+  content_id: text('content_id').notNull(), // Permanent identifier
+  topic_id: text('topic_id').notNull(),
+  strategy_id: text('strategy_id').notNull(),
+  topic_title: text('topic_title'),
+  content_class: varchar('content_class', { length: 32 }).default('expert_pov'),
+  assigned_sme: text('assigned_sme'),
+  owner: text('owner').notNull(),
+  status: varchar('status', { length: 32 }).default('not_started'),
+  planned_publish_date: timestamp('planned_publish_date'),
+  // Article content fields
+  title: text('title'),
+  brief: text('brief'),
+  outline: text('outline'),
+  content: text('content'),
+  angle: text('angle'),
+  target_audience: text('target_audience'),
+  word_count: integer('word_count'),
+  // Related data
+  linked_sources: jsonb('linked_sources').default([]),
+  briefing_session_id: text('briefing_session_id'),
+  briefing_insights: jsonb('briefing_insights').default({}),
+  // SEO & optimization
+  seo_score: integer('seo_score'),
+  seo_analysis: jsonb('seo_analysis'),
+  selected_cta: jsonb('selected_cta'),
+  generated_ctas: jsonb('generated_ctas'),
+  selected_image: jsonb('selected_image'),
+  // Workflow states
+  paused_reason: text('paused_reason'),
+  blocked_reason: text('blocked_reason'),
+  publish_date: timestamp('publish_date'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const articleDocuments = pgTable('article_documents', {
@@ -332,6 +372,48 @@ export const approvals = pgTable('approvals', {
   changesRequested: text('changes_requested'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================================
+// ARTICLE FEEDBACK & COMMENTS
+// ============================================================================
+
+export const articleComments = pgTable('article_comments', {
+  id: text('id').primaryKey(), // Format: comment_${timestamp}_${randomId}
+  articleId: text('article_id')
+    .notNull()
+    .references(() => articles.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  authorId: text('author_id').notNull(), // User ID of comment author
+  parentCommentId: text('parent_comment_id'), // For reply threads
+  content: text('content').notNull(), // Comment text
+  commentType: varchar('comment_type', { length: 32 }).default('suggestion'), // blocker, suggestion, praise
+  section: varchar('section', { length: 64 }), // Which part of article: intro, body, conclusion, etc.
+  isResolved: boolean('is_resolved').default(false),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: text('resolved_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const revisionHistory = pgTable('revision_history', {
+  id: text('id').primaryKey(), // Format: revision_${timestamp}_${randomId}
+  articleId: text('article_id')
+    .notNull()
+    .references(() => articles.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  revisionNumber: integer('revision_number').notNull(), // 1, 2, 3, etc.
+  previousStatus: varchar('previous_status', { length: 32 }), // Article status before this revision
+  newStatus: varchar('new_status', { length: 32 }), // Article status after this revision
+  changedBy: text('changed_by').notNull(), // User ID who made the change
+  changeType: varchar('change_type', { length: 32 }).notNull(), // content_update, status_change, submitted_review, approved, rejected
+  changedFields: jsonb('changed_fields').default({}), // What fields changed: {title: "old", content: "..."}
+  description: text('description'), // Human-readable summary of changes
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ============================================================================
@@ -557,13 +639,13 @@ export const integrationConnections = pgTable('integration_connections', {
 export const indexes = [
   // Workspace isolation
   index('idx_memberships_workspace_user').on(memberships.workspaceId, memberships.userId),
-  index('idx_articles_workspace').on(articles.workspaceId),
+  index('idx_articles_workspace').on(articles.workspace_id),
   index('idx_topics_workspace').on(topicCandidates.workspaceId),
   index('idx_claims_workspace').on(claims.workspaceId),
   index('idx_audit_workspace').on(auditEvents.workspaceId),
 
   // Foreign key lookups
-  index('idx_articles_topic').on(articles.topicId),
+  index('idx_articles_topic').on(articles.topic_id),
   index('idx_approvals_article').on(approvals.articleId),
   index('idx_artifacts_article').on(artifactVersions.articleId),
   index('idx_interview_sme').on(interviewSessions.smeId),
@@ -573,8 +655,14 @@ export const indexes = [
   index('idx_approval_status').on(approvals.status),
 
   // Timestamps
-  index('idx_articles_created').on(articles.createdAt),
+  index('idx_articles_created').on(articles.created_at),
   index('idx_approvals_created').on(approvals.createdAt),
+
+  // Article comments & feedback
+  index('idx_comments_article').on(articleComments.articleId),
+  index('idx_comments_workspace').on(articleComments.workspaceId),
+  index('idx_revision_article').on(revisionHistory.articleId),
+  index('idx_revision_workspace').on(revisionHistory.workspaceId),
 ];
 
 // Type exports
@@ -582,3 +670,7 @@ export type StrategyVersion = typeof strategyVersions.$inferSelect;
 export type InsertStrategyVersion = typeof strategyVersions.$inferInsert;
 export type TopicCandidate = typeof topicCandidates.$inferSelect;
 export type InsertTopicCandidate = typeof topicCandidates.$inferInsert;
+export type ArticleComment = typeof articleComments.$inferSelect;
+export type InsertArticleComment = typeof articleComments.$inferInsert;
+export type RevisionHistory = typeof revisionHistory.$inferSelect;
+export type InsertRevisionHistory = typeof revisionHistory.$inferInsert;
