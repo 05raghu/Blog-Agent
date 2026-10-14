@@ -7,10 +7,10 @@ import { useWorkspace } from '@/lib/workspace-context';
 
 interface Strategy {
   id: string;
-  title: string;
+  title?: string;
   offerings: string[];
-  targetIcps: string[];
-  createdAt: string;
+  icps: string[];
+  created_at: string;
 }
 
 export default function StrategyPage() {
@@ -246,10 +246,10 @@ export default function StrategyPage() {
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-slate-900">{strategy.offerings?.join(', ') || strategy.title}</h3>
                           <p className="text-xs text-slate-500 mt-1">
-                            Target ICPs: {strategy.targetIcps?.join(', ') || 'None'}
+                            Target ICPs: {strategy.icps?.join(', ') || 'None'}
                           </p>
                           <p className="text-xs text-slate-500">
-                            Created: {new Date(strategy.createdAt).toLocaleDateString()}
+                            Created: {new Date(strategy.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
