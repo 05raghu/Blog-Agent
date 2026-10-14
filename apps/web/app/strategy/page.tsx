@@ -339,12 +339,19 @@ export default function StrategyPage() {
                   <input
                     type="text"
                     value={editFormData.offerings.join(', ')}
-                    onChange={(e) => setEditFormData({
-                      ...editFormData,
-                      offerings: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                    })}
+                    onChange={(e) => {
+                      console.log('Offerings onChange:', e.target.value);
+                      setEditFormData({
+                        ...editFormData,
+                        offerings: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      console.log('Offerings onKeyDown:', e.key);
+                    }}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
                     placeholder="e.g., Product A, Product B, Product C"
+                    autoComplete="off"
                   />
                 </div>
 
