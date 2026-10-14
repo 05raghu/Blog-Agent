@@ -30,11 +30,10 @@ export default function StrategyPage() {
     icps: [] as string[],
     geographies: [] as string[],
     competitors: [] as string[],
-    contentMix: {} as Record<string, number>,
+    contentMix: '' as string,
     description: '',
   });
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [contentMixKeys, setContentMixKeys] = useState<string[]>([]);
 
   const fetchStrategies = async () => {
     try {
@@ -57,7 +56,10 @@ export default function StrategyPage() {
       const response = await fetch(`/api/strategy/${strategy.id}`);
       if (response.ok) {
         const fullStrategy = await response.json();
-        const contentMix = fullStrategy.content_mix || {};
+        const contentMixObj = fullStrategy.content_mix || {};
+        const contentMixStr = Object.entries(contentMixObj)
+          .map(([k, v]) => `${k}:${v}`)
+          .join('; ');
         setEditingStrategy(strategy);
         setEditFormData({
           title: fullStrategy.title || '',
@@ -65,15 +67,28 @@ export default function StrategyPage() {
           icps: fullStrategy.icps || [],
           geographies: fullStrategy.geographies || [],
           competitors: fullStrategy.competitors || [],
-          contentMix: contentMix,
+          contentMix: contentMixStr,
           description: fullStrategy.description || '',
         });
-        setContentMixKeys(Object.keys(contentMix));
         setShowEditModal(true);
       }
     } catch (err) {
       console.error('Failed to fetch strategy details:', err);
     }
+  };
+
+  const parseContentMix = (str: string): Record<string, number> => {
+    const mix: Record<string, number> = {};
+    if (!str.trim()) return mix;
+
+    str.split(';').forEach((item) => {
+      const [key, value] = item.split(':').map((s) => s.trim());
+      if (key && value) {
+        mix[key] = parseInt(value, 10);
+      }
+    });
+
+    return mix;
   };
 
   const handleSaveStrategy = async () => {
@@ -90,7 +105,7 @@ export default function StrategyPage() {
           icps: editFormData.icps,
           geographies: editFormData.geographies,
           competitors: editFormData.competitors,
-          contentMix: editFormData.contentMix,
+          contentMix: parseContentMix(editFormData.contentMix),
           description: editFormData.description,
         }),
       });
@@ -372,54 +387,17 @@ export default function StrategyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-3">Content Mix (%)</label>
-                  <div className="space-y-2">
-                    {contentMixKeys.length === 0 ? (
-                      <p className="text-sm text-slate-500 italic">No content mix defined</p>
-                    ) : (
-                      contentMixKeys.map((key) => (
-                        <div key={key} className="flex gap-2 items-center">
-                          <label className="w-32 text-sm text-slate-700">{key}:</label>
-                          <input
-                            type="number"
-                            value={editFormData.contentMix[key] || 0}
-                            onChange={(e) => {
-                              setEditFormData({
-                                ...editFormData,
-                                contentMix: {
-                                  ...editFormData.contentMix,
-                                  [key]: Number(e.target.value)
-                                }
-                              });
-                            }}
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded text-sm"
-                            min="0"
-                            max="100"
-                          />
-                          <span className="text-sm text-slate-500 w-8">%</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newKey = prompt('Enter content type (e.g., blog, guide, whitepaper):');
-                      if (newKey && !contentMixKeys.includes(newKey)) {
-                        setContentMixKeys([...contentMixKeys, newKey]);
-                        setEditFormData({
-                          ...editFormData,
-                          contentMix: {
-                            ...editFormData.contentMix,
-                            [newKey]: 0
-                          }
-                        });
-                      }
-                    }}
-                    className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    + Add Content Type
-                  </button>
+                  <label className="block text-sm font-medium mb-2">Content Mix (key:value; format)</label>
+                  <textarea
+                    value={editFormData.contentMix}
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      contentMix: e.target.value
+                    })}
+                    placeholder="e.g., how-to:30; thought-leadership:40; case-study:30"
+                    rows={2}
+                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                  />
                 </div>
               </div>
 
