@@ -26,10 +26,10 @@ export default function StrategyPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editFormData, setEditFormData] = useState({
     title: '',
-    offerings: [] as string[],
-    icps: [] as string[],
-    geographies: [] as string[],
-    competitors: [] as string[],
+    offeringsText: '' as string,
+    icpsText: '' as string,
+    geographiesText: '' as string,
+    competitorsText: '' as string,
     contentMix: '' as string,
     description: '',
   });
@@ -63,10 +63,10 @@ export default function StrategyPage() {
         setEditingStrategy(strategy);
         setEditFormData({
           title: fullStrategy.title || '',
-          offerings: fullStrategy.offerings || [],
-          icps: fullStrategy.icps || [],
-          geographies: fullStrategy.geographies || [],
-          competitors: fullStrategy.competitors || [],
+          offeringsText: (fullStrategy.offerings || []).join(', '),
+          icpsText: (fullStrategy.icps || []).join(', '),
+          geographiesText: (fullStrategy.geographies || []).join(', '),
+          competitorsText: (fullStrategy.competitors || []).join(', '),
           contentMix: contentMixStr,
           description: fullStrategy.description || '',
         });
@@ -91,6 +91,13 @@ export default function StrategyPage() {
     return mix;
   };
 
+  const parseCommaSeparated = (text: string): string[] => {
+    return text
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  };
+
   const handleSaveStrategy = async () => {
     if (!editingStrategy) return;
 
@@ -101,10 +108,10 @@ export default function StrategyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editFormData.title,
-          offerings: editFormData.offerings,
-          icps: editFormData.icps,
-          geographies: editFormData.geographies,
-          competitors: editFormData.competitors,
+          offerings: parseCommaSeparated(editFormData.offeringsText),
+          icps: parseCommaSeparated(editFormData.icpsText),
+          geographies: parseCommaSeparated(editFormData.geographiesText),
+          competitors: parseCommaSeparated(editFormData.competitorsText),
           contentMix: parseContentMix(editFormData.contentMix),
           description: editFormData.description,
         }),
@@ -338,20 +345,13 @@ export default function StrategyPage() {
                   <label className="block text-sm font-medium mb-2">Offerings (comma-separated)</label>
                   <input
                     type="text"
-                    value={editFormData.offerings.join(', ')}
-                    onChange={(e) => {
-                      console.log('Offerings onChange:', e.target.value);
-                      setEditFormData({
-                        ...editFormData,
-                        offerings: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                      });
-                    }}
-                    onKeyDown={(e) => {
-                      console.log('Offerings onKeyDown:', e.key);
-                    }}
+                    value={editFormData.offeringsText}
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      offeringsText: e.target.value
+                    })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
                     placeholder="e.g., Product A, Product B, Product C"
-                    autoComplete="off"
                   />
                 </div>
 
@@ -359,10 +359,10 @@ export default function StrategyPage() {
                   <label className="block text-sm font-medium mb-2">Target ICPs (comma-separated)</label>
                   <input
                     type="text"
-                    value={editFormData.icps.join(', ')}
+                    value={editFormData.icpsText}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
-                      icps: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      icpsText: e.target.value
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
                     placeholder="e.g., Engineering Leaders, Product Managers"
@@ -373,10 +373,10 @@ export default function StrategyPage() {
                   <label className="block text-sm font-medium mb-2">Geographies (comma-separated)</label>
                   <input
                     type="text"
-                    value={editFormData.geographies.join(', ')}
+                    value={editFormData.geographiesText}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
-                      geographies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      geographiesText: e.target.value
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
                     placeholder="e.g., US, EU, APAC"
@@ -387,10 +387,10 @@ export default function StrategyPage() {
                   <label className="block text-sm font-medium mb-2">Competitors (comma-separated)</label>
                   <input
                     type="text"
-                    value={editFormData.competitors.join(', ')}
+                    value={editFormData.competitorsText}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
-                      competitors: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      competitorsText: e.target.value
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
                     placeholder="e.g., Competitor A, Competitor B"
