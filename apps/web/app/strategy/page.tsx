@@ -336,53 +336,57 @@ export default function StrategyPage() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Offerings (comma-separated)</label>
-                  <textarea
+                  <input
+                    type="text"
                     value={editFormData.offerings.join(', ')}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
                       offerings: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                    rows={3}
+                    placeholder="e.g., Product A, Product B, Product C"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Target ICPs (comma-separated)</label>
-                  <textarea
+                  <input
+                    type="text"
                     value={editFormData.icps.join(', ')}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
                       icps: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                    rows={3}
+                    placeholder="e.g., Engineering Leaders, Product Managers"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Geographies (comma-separated)</label>
-                  <textarea
+                  <input
+                    type="text"
                     value={editFormData.geographies.join(', ')}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
                       geographies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                    rows={2}
+                    placeholder="e.g., US, EU, APAC"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Competitors (comma-separated)</label>
-                  <textarea
+                  <input
+                    type="text"
                     value={editFormData.competitors.join(', ')}
                     onChange={(e) => setEditFormData({
                       ...editFormData,
                       competitors: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
                     className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                    rows={2}
+                    placeholder="e.g., Competitor A, Competitor B"
                   />
                 </div>
 
