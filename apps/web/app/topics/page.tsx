@@ -1200,52 +1200,38 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   <div className="grid grid-cols-7 gap-1 text-xs">
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.strategicRelevance?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Strategic<br />Relevance
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.strategicRelevance?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Strategic<br />Relevance</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.strategicRelevance?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.audienceIcpUsefulness?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Audience/<br />ICP
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.audienceIcpUsefulness?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Audience/<br />ICP</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.audienceIcpUsefulness?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.availableEvidenceAndDemand?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Evidence &<br />Demand
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.availableEvidenceAndDemand?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Evidence &<br />Demand</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.availableEvidenceAndDemand?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.differentiatedAngle?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Differentiated<br />Angle
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.differentiatedAngle?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Differentiated<br />Angle</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.differentiatedAngle?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.smeFit?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        SME Fit
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.smeFit?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">SME Fit</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.smeFit?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.searchContentGap?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Search<br />Gap
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.searchContentGap?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Search<br />Gap</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.searchContentGap?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.conversionDistributionPotential?.score || 0}</div>
-                      <div className="text-slate-600 text-xs flex items-center gap-1">
-                        Conversion<br />Potential
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.conversionDistributionPotential?.evidence || 'No reasoning available'}>?</button>
-                      </div>
+                      <div className="text-slate-600 text-xs">Conversion<br />Potential</div>
+                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.conversionDistributionPotential?.evidence || 'N/A'}</div>
                     </div>
                   </div>
 
