@@ -1,9 +1,10 @@
 // API route: /api/strategy/topics — Create and retrieve user-defined topics
-// Fetches from database, never from memory store
+// Auto-scores using LLM (Claude, OpenAI, or Mock)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scoreAndBuildTopic } from '@/lib/topic-store';
+import { generateTopicId } from '@/lib/topic-store';
 import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
+import { getTopicScorerProvider } from '@/lib/topic-scorer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Normalize strategy: API returns 'icps' but scoring expects 'targetIcps'
+      // Normalize strategy
       const normalizedStrategy = {
         offerings: strategy.offerings || [],
         targetIcps: strategy.targetIcps || strategy.icps || [],
@@ -42,52 +43,121 @@ export async function POST(request: NextRequest) {
         contentMix: strategy.contentMix || {},
       };
 
-      const scoredTopic = scoreAndBuildTopic(topic, normalizedStrategy);
+      try {
+        // Get LLM scorer (Claude, OpenAI, or Mock)
+        const scorer = await getTopicScorerProvider();
 
-      // Save to database
-      const supabase = createServerClient();
-      const { error: insertError } = await supabase
-        .from('topic_candidates')
-        .insert({
-          id: scoredTopic.id,
-          workspace_id: workspace.workspaceId,
-          strategy_id: strategyId,
-          title: scoredTopic.title,
-          summary: scoredTopic.summary,
-          angle: scoredTopic.angle,
-          format: scoredTopic.format || 'blog',
-          geography: scoredTopic.geography,
-          audience: scoredTopic.audience,
-          target_offering: scoredTopic.targetOffering,
-          score: scoredTopic.score,
-          confidence: scoredTopic.confidence,
-          breakdown: scoredTopic.breakdown,
-          cannibalization_risk: scoredTopic.cannibalizationRisk,
-          recommended_smes: scoredTopic.recommendedSmes,
-          missing_inputs: scoredTopic.missingInputs,
+        // Score the topic using LLM
+        console.log('[API] Auto-scoring topic with LLM:', topic.title.substring(0, 50));
+        const llmScore = await scorer.scoreTopic({
+          topic,
+          strategy: normalizedStrategy,
         });
 
-      if (insertError) {
-        console.error('[API] Topic insert error:', insertError);
+        // Generate ID for topic
+        const topicId = generateTopicId();
+
+        // Build topic object with LLM score
+        const scoredTopic = {
+          id: topicId,
+          title: topic.title,
+          summary: topic.summary || '',
+          format: topic.format || 'blog',
+          angle: topic.angle,
+          targetOffering: topic.targetOffering,
+          geography: topic.geography,
+          audience: topic.audience,
+          score: llmScore.totalScore,
+          confidence: llmScore.confidence,
+          breakdown: {
+            strategicRelevance: {
+              score: llmScore.breakdown.strategicRelevance.score,
+              evidence: llmScore.breakdown.strategicRelevance.reasoning,
+            },
+            audienceIcpUsefulness: {
+              score: llmScore.breakdown.audienceIcpUsefulness.score,
+              evidence: llmScore.breakdown.audienceIcpUsefulness.reasoning,
+            },
+            availableEvidenceAndDemand: {
+              score: llmScore.breakdown.availableEvidenceAndDemand.score,
+              evidence: llmScore.breakdown.availableEvidenceAndDemand.reasoning,
+            },
+            differentiatedAngle: {
+              score: llmScore.breakdown.differentiatedAngle.score,
+              evidence: llmScore.breakdown.differentiatedAngle.reasoning,
+            },
+            smeFit: {
+              score: llmScore.breakdown.smeFit.score,
+              evidence: llmScore.breakdown.smeFit.reasoning,
+            },
+            searchContentGap: {
+              score: llmScore.breakdown.searchContentGap.score,
+              evidence: llmScore.breakdown.searchContentGap.reasoning,
+            },
+            conversionDistributionPotential: {
+              score: llmScore.breakdown.conversionDistributionPotential.score,
+              evidence: llmScore.breakdown.conversionDistributionPotential.reasoning,
+            },
+          },
+          cannibalizationRisk: { exists: false },
+          recommendedSmes: [],
+          missingInputs: [],
+          createdAt: new Date().toISOString(),
+          llmScoringData: llmScore, // Store full LLM breakdown
+        };
+
+        // Save to database
+        const supabase = createServerClient();
+        const { error: insertError } = await supabase
+          .from('topic_candidates')
+          .insert({
+            id: scoredTopic.id,
+            workspace_id: workspace.workspaceId,
+            strategy_id: strategyId,
+            title: scoredTopic.title,
+            summary: scoredTopic.summary,
+            angle: scoredTopic.angle,
+            format: scoredTopic.format || 'blog',
+            geography: scoredTopic.geography,
+            audience: scoredTopic.audience,
+            target_offering: scoredTopic.targetOffering,
+            score: scoredTopic.score,
+            confidence: scoredTopic.confidence,
+            breakdown: scoredTopic.breakdown,
+            scoring_data: scoredTopic.llmScoringData, // Store full LLM data
+            cannibalization_risk: scoredTopic.cannibalizationRisk,
+            recommended_smes: scoredTopic.recommendedSmes,
+            missing_inputs: scoredTopic.missingInputs,
+          });
+
+        if (insertError) {
+          console.error('[API] Topic insert error:', insertError);
+          return NextResponse.json(
+            { error: 'Failed to save topic' },
+            { status: 400 }
+          );
+        }
+
+        // Fetch updated list from database
+        const { data: topics } = await supabase
+          .from('topic_candidates')
+          .select('*')
+          .eq('strategy_id', strategyId)
+          .eq('workspace_id', workspace.workspaceId);
+
+        return NextResponse.json({
+          success: true,
+          topic: scoredTopic,
+          topics: topics || [],
+          message: 'Topic created and auto-scored with LLM successfully',
+        });
+      } catch (scoreError) {
+        console.error('[API] LLM scoring error:', scoreError);
         return NextResponse.json(
-          { error: 'Failed to save topic' },
-          { status: 400 }
+          { error: 'Failed to score topic with LLM', message: (scoreError as Error).message },
+          { status: 500 }
         );
       }
-
-      // Fetch updated list from database
-      const { data: topics } = await supabase
-        .from('topic_candidates')
-        .select('*')
-        .eq('strategy_id', strategyId)
-        .eq('workspace_id', workspace.workspaceId);
-
-      return NextResponse.json({
-        success: true,
-        topic: scoredTopic,
-        topics: topics || [],
-        message: 'Topic created and scored successfully',
-      });
     }
 
     return NextResponse.json(

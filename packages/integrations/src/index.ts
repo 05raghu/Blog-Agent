@@ -3,3 +3,4 @@
 export * from './text-model';
 export * from './image-model';
 export * from './search-crawl';
+export * from './topic-scorer';
