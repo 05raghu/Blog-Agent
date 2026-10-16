@@ -1123,7 +1123,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                 {generatingTopics ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating 10 topics...
+                    Generating topics...
                   </>
                 ) : (
                   '✨ Generate 10 Topics'
@@ -1202,57 +1202,50 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                       <div className="font-bold text-ink-950">{topic.breakdown.strategicRelevance?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Strategic<br />Relevance
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Does this topic align with your offerings?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.strategicRelevance?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.strategicRelevance?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.audienceIcpUsefulness?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Audience/<br />ICP
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Is this useful for your target customers?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.audienceIcpUsefulness?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.audienceIcpUsefulness?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.availableEvidenceAndDemand?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Evidence &<br />Demand
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Is there real market data supporting this?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.availableEvidenceAndDemand?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.availableEvidenceAndDemand?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.differentiatedAngle?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Differentiated<br />Angle
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="What makes this unique vs competitors?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.differentiatedAngle?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.differentiatedAngle?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.smeFit?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         SME Fit
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Do you have subject-matter experts for this?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.smeFit?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.smeFit?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.searchContentGap?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Search<br />Gap
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Will people search for this topic?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.searchContentGap?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.searchContentGap?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.conversionDistributionPotential?.score || 0}</div>
                       <div className="text-slate-600 text-xs flex items-center gap-1">
                         Conversion<br />Potential
-                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title="Can this drive leads?">?</button>
+                        <button className="text-slate-400 hover:text-slate-600 font-bold cursor-help" title={topic.breakdown.conversionDistributionPotential?.evidence || 'No reasoning available'}>?</button>
                       </div>
-                      <div className="text-slate-500 text-xs mt-1">{topic.breakdown.conversionDistributionPotential?.evidence || 'N/A'}</div>
                     </div>
                   </div>
 
