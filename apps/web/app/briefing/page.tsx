@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
+import { extractInsights } from '@/lib/briefing-insights';
 
 interface SMEProfile {
   id: string;
@@ -91,6 +92,7 @@ function BriefingContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<BriefingSession | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [autoLinkMessage, setAutoLinkMessage] = useState('');
 
   const startNewSession = async (topic: Topic, sme: SMEProfile) => {
     try {
@@ -166,27 +168,36 @@ function BriefingContent() {
         // If API fails, continue with localStorage data
         console.log('API unavailable, using localStorage');
       }
-      const topicsStored = localStorage.getItem('topics');
-      if (topicsStored) {
-        const allTopics = JSON.parse(topicsStored);
-        // Filter by strategyId from URL
-        const filtered = strategyId
-          ? allTopics.filter((t: Topic) => t.strategyId === strategyId)
-          : [];
-        setTopics(filtered);
+      // Fetch topics from API
+      let fetchedTopics: Topic[] = [];
+      try {
+        const topicsResponse = await fetch(`/api/strategy/topics?strategyId=${strategyId}`);
+        if (topicsResponse.ok) {
+          const topicsData = await topicsResponse.json();
+          fetchedTopics = topicsData.topics || [];
+          setTopics(fetchedTopics);
+        }
+      } catch (err) {
+        console.log('Failed to fetch topics');
       }
-      const smesStored = localStorage.getItem('sme_profiles');
-      if (smesStored) {
-        const allSMEs = JSON.parse(smesStored);
-        // Filter by workspaceId
-        const filtered = allSMEs.filter((s: SMEProfile) => s.workspaceId === workspaceId);
-        setSmes(filtered);
+
+      // Fetch SMEs from API
+      let fetchedSMEs: SMEProfile[] = [];
+      try {
+        const smesResponse = await fetch('/api/sme');
+        if (smesResponse.ok) {
+          const smesData = await smesResponse.json();
+          fetchedSMEs = smesData.smes || [];
+          setSmes(fetchedSMEs);
+        }
+      } catch (err) {
+        console.log('Failed to fetch SMEs');
       }
 
       // If topic and SME are in URL, load that session or create new one
       if (topicId && smeId) {
-        const topic = JSON.parse(topicsStored || '[]').find((t: Topic) => t.id === topicId);
-        const sme = JSON.parse(smesStored || '[]').find((s: SMEProfile) => s.id === smeId);
+        const topic = fetchedTopics.find((t: Topic) => t.id === topicId);
+        const sme = fetchedSMEs.find((s: SMEProfile) => s.id === smeId);
         if (topic && sme) {
           setSelectedTopic(topic);
           setSelectedSME(sme);
@@ -263,6 +274,81 @@ function BriefingContent() {
         const updatedSessions = sessions.map((s) => (s.id === completed.id ? completed : s));
         setSessions(updatedSessions);
         localStorage.setItem('briefing_sessions', JSON.stringify(updatedSessions));
+
+        // Auto-link: Extract insights and update linked articles
+        try {
+          const questionsData = completed.questions || DEFAULT_QUESTIONS;
+          const briefingInsights = extractInsights(completed.responses || {}, questionsData);
+
+          console.log('[Briefing] Session completed - Starting auto-link:', {
+            sessionId: completed.id,
+            smeId: completed.smeId,
+            strategyId,
+          });
+
+          // Find articles linked to this SME in the same strategy
+          // These are articles that either:
+          // 1. Already have this briefing session ID
+          // 2. Have this SME assigned but no briefing insights yet
+          const articlesResponse = await fetch(`/api/articles?strategyId=${strategyId}`);
+          console.log('[Briefing] Articles API response status:', articlesResponse.status);
+
+          if (articlesResponse.ok) {
+            const articlesData = await articlesResponse.json();
+            console.log('[Briefing] All articles fetched:', articlesData.articles?.length);
+            console.log('[Briefing] Article details:', articlesData.articles?.map((a: any) => ({
+              id: a.id,
+              title: a.title,
+              assignedSmeId: a.assignedSmeId,
+              briefingInsights: a.briefingInsights,
+            })));
+
+            const linkedArticles = (articlesData.articles || []).filter(
+              (a: any) => a.assignedSmeId === completed.smeId
+            );
+
+            console.log('[Briefing] Articles with this SME assigned:', linkedArticles.length);
+
+            // Update each article with the extracted insights
+            let successCount = 0;
+            for (const article of linkedArticles) {
+              try {
+                const updateResponse = await fetch('/api/articles/update-briefing-insights', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    articleId: article.id,
+                    briefingSessionId: completed.id,
+                    briefingInsights,
+                  }),
+                });
+
+                if (updateResponse.ok) {
+                  successCount++;
+                  console.log(`[Briefing] Updated insights for article ${article.id}`);
+                } else {
+                  console.error(`[Briefing] Failed to update article ${article.id}:`, updateResponse.status);
+                }
+              } catch (updateErr) {
+                console.error(`[Briefing] Error updating article ${article.id}:`, updateErr);
+              }
+            }
+
+            console.log('[Briefing] Update complete. Success count:', successCount);
+            if (successCount > 0) {
+              setAutoLinkMessage(
+                `✓ Briefing insights updated for ${successCount} article(s) with this SME.`
+              );
+            } else if (linkedArticles.length === 0) {
+              console.log('[Briefing] No articles found with this SME assigned');
+            } else {
+              console.log('[Briefing] Articles found but updates failed - check errors above');
+            }
+          }
+        } catch (linkErr) {
+          console.error('Auto-linking failed:', linkErr);
+          // Don't show error to user if auto-linking fails - session is still complete
+        }
       }
     } catch (err) {
       console.error('Failed to complete session:', err);
@@ -432,10 +518,20 @@ function BriefingContent() {
               {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-lg p-6 mb-8 text-center">
-              <div className="text-5xl mb-4">✓</div>
-              <h2 className="text-2xl font-bold text-ink-950 mb-2">Session Complete!</h2>
-              <p className="text-slate-600">All answers recorded. Session has been saved.</p>
+            <div className="bg-white border border-slate-200 rounded-lg p-6 mb-8">
+              <div className="text-center">
+                <div className="text-5xl mb-4">✓</div>
+                <h2 className="text-2xl font-bold text-ink-950 mb-2">Session Complete!</h2>
+                <p className="text-slate-600 mb-4">All answers recorded. Session has been saved.</p>
+              </div>
+              {autoLinkMessage && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded">
+                  <p className="text-green-800 font-medium text-center">{autoLinkMessage}</p>
+                  <p className="text-green-700 text-sm text-center mt-1">
+                    The linked articles are now ready for draft generation with SME insights.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

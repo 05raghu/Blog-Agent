@@ -104,10 +104,22 @@ pre {
   font-size: var(--cw-type-label-size);
 }
 
+/* ============================================================================
+   Button Styles — Organized by Functionality
+   ============================================================================
+
+   PRIMARY (btn-primary): Create/Add, Save/Submit, Next/Continue
+   SECONDARY (btn-secondary): Back/Navigate, View/Open, Cancel
+   DANGER (btn-danger): Delete/Remove (destructive actions)
+   TEXT (btn-text): Links/Inline actions
+
+   ============================================================================ */
+
 /* Button base styles (Tier 01 & Tier 02) */
 @layer components {
 
-  /* Tier 01 — Resolved Primary (Observed) */
+  /* Tier 01 — Resolved Primary (Observed)
+     Use for: Create/Add new items, Save/Submit, Next/Continue */
   .btn-primary {
     @apply inline-flex items-center justify-center px-6 py-3 rounded-cw font-medium text-base;
     background-color: var(--cw-signal);
@@ -132,7 +144,8 @@ pre {
     cursor: not-allowed;
   }
 
-  /* Tier 02 — Quiet Secondary (Available) */
+  /* Tier 02 — Quiet Secondary (Available)
+     Use for: Back/Navigate, View/Open, Cancel */
   .btn-secondary {
     @apply inline-flex items-center justify-center px-6 py-3 rounded-cw font-medium text-base;
     background-color: transparent;
@@ -157,7 +170,34 @@ pre {
     cursor: not-allowed;
   }
 
-  /* Text link variant */
+  /* Danger — Destructive Actions (Red/Ember)
+     Use for: Delete/Remove (paired with delete icon, not replacing it) */
+  .btn-danger {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-cw font-medium text-base;
+    background-color: var(--cw-ember);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 240ms cubic-bezier(0.4, 0, 0.2, 1);
+    height: var(--cw-control-height);
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  .btn-danger:active {
+    transform: translateY(0);
+  }
+
+  .btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Text link variant
+     Use for: Links, inline actions, skip buttons */
   .btn-text {
     @apply text-base font-medium underline cursor-pointer;
     color: var(--cw-ink-950);
@@ -249,5 +289,20 @@ pre {
 
   .transition-interfere {
     animation: interfere var(--cw-motion-interfere) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

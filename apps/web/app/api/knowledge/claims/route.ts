@@ -1,10 +1,18 @@
-// API route: GET/POST /api/knowledge/claims
+// API route: GET/POST /api/knowledge/claims — Manage claims
 
 import { NextRequest, NextResponse } from 'next/server';
-import { claimStore, type Claim } from '../store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const articleId = searchParams.get('articleId');
     const sourceId = searchParams.get('sourceId');
@@ -13,21 +21,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'articleId or sourceId required' }, { status: 400 });
     }
 
-    let claims: Claim[] = [];
+    const supabase = createServerClient();
+    let query = supabase.from('claims').select('*').eq('workspace_id', workspace.workspaceId);
 
     if (articleId) {
-      // Filter claims by article
-      claims = Array.from(claimStore.values()).filter(
-        (claim) => claim.articleId === articleId
-      );
+      query = query.eq('article_id', articleId);
     } else if (sourceId) {
-      // Filter claims by source
-      claims = Array.from(claimStore.values()).filter(
-        (claim) => claim.sourceId === sourceId
+      query = query.eq('source_id', sourceId);
+    }
+
+    const { data: claims, error } = await query;
+
+    if (error) {
+      console.error('[API] Claims fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch claims' },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json({ claims });
+    return NextResponse.json({ claims: claims || [] });
   } catch (error) {
     console.error('[API] Claims fetch error:', error);
     return NextResponse.json(
@@ -39,6 +52,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { articleId, sourceId, text, type = 'factual' } = body;
 
@@ -49,30 +70,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const claimId = `claim_${crypto.randomUUID()}`;
-    const now = new Date();
+    const claimId = `claim_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    const claim: Claim = {
-      id: claimId,
-      articleId,
-      sourceId: sourceId || '',
-      text,
-      type: type as Claim['type'],
-      status: 'unverified',
-      flaggedForReview: false,
-      createdAt: now,
-    };
+    const supabase = createServerClient();
+    const { error: insertError } = await supabase
+      .from('claims')
+      .insert({
+        id: claimId,
+        workspace_id: workspace.workspaceId,
+        article_id: articleId,
+        source_id: sourceId || null,
+        text,
+        type,
+        status: 'unverified',
+        flagged_for_review: false,
+      });
 
-    claimStore.set(claimId, claim);
+    if (insertError) {
+      console.error('[API] Claim insert error:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to create claim' },
+        { status: 400 }
+      );
+    }
 
     console.log(`[API] Created claim ${claimId} for article ${articleId}`);
 
     return NextResponse.json({
-      id: claim.id,
-      text: claim.text,
-      type: claim.type,
-      status: claim.status,
-      sourceId: claim.sourceId,
+      success: true,
+      id: claimId,
+      text,
+      type,
+      status: 'unverified',
+      sourceId,
     });
   } catch (error) {
     console.error('[API] Claim creation error:', error);

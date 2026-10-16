@@ -1,25 +1,12 @@
 // API route: GET/POST/PUT/DELETE /api/sme
 // Manages SME profiles at workspace-level
-// Uses database with fallback to in-memory store for development
+// Fetches from database, never from memory store
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSMEsByWorkspace, addSME, updateSME, deleteSME } from '@/lib/sme-store';
-import { getWorkspaceContext } from '@/lib/workspace-auth';
-
-// Try to load database client; it will be null if DATABASE_URL not set
-let smeRepository: any = null;
-try {
-  if (process.env.DATABASE_URL) {
-    const dbModule = require('@blog-agent/db');
-    smeRepository = dbModule.smeRepository;
-  }
-} catch (e) {
-  console.warn('[API] Database not available, using in-memory store');
-}
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -28,38 +15,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const workspaceId = workspace.workspaceId;
+    const supabase = createServerClient();
+    const { data: smes, error } = await supabase
+      .from('sme_profiles')
+      .select('*')
+      .eq('workspace_id', workspace.workspaceId);
 
-    let smes;
-
-    if (smeRepository) {
-      try {
-        const dbSmes = await smeRepository.listByWorkspace(workspaceId);
-        smes = dbSmes.map((sme: any) => ({
-          id: sme.id,
-          workspaceId: sme.workspaceId,
-          userId: sme.userId,
-          expertise: sme.expertise,
-          biography: sme.biography,
-          preferredTopics: sme.preferredTopics,
-          capacityHoursPerMonth: sme.capacityHoursPerMonth,
-          attributionRules: sme.attributionRules,
-          pastContributions: sme.pastContributions,
-          createdAt: sme.createdAt,
-          updatedAt: sme.updatedAt,
-        }));
-      } catch (dbError) {
-        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
-        smes = getSMEsByWorkspace(workspaceId);
-      }
-    } else {
-      smes = getSMEsByWorkspace(workspaceId);
+    if (error) {
+      console.error('[API] SME fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch SMEs' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      workspaceId,
-      smes,
+      workspaceId: workspace.workspaceId,
+      smes: smes || [],
     });
   } catch (error) {
     console.error('[API] SME fetch error:', error);
@@ -72,7 +45,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -93,44 +65,36 @@ export async function POST(request: NextRequest) {
 
     const smeId = sme.id || `sme_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    if (smeRepository) {
-      try {
-        await smeRepository.create({
-          id: smeId,
-          workspaceId: workspace.workspaceId,
-          userId: sme.userId || workspace.userId,
-          name: sme.name,
-          email: sme.email,
-          expertise: sme.expertise || [],
-          biography: sme.biography,
-          preferredTopics: sme.preferredTopics || [],
-          capacityHoursPerMonth: sme.capacityHoursPerMonth || 3,
-          attributionRules: sme.attributionRules || {},
-          pastContributions: sme.pastContributions || [],
-        });
-      } catch (dbError) {
-        console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
-        addSME(workspace.workspaceId, {
-          ...sme,
-          id: smeId,
-          workspaceId: workspace.workspaceId,
-        });
-      }
-    } else {
-      addSME(workspace.workspaceId, {
-        ...sme,
+    const supabase = createServerClient();
+    const { error: insertError } = await supabase
+      .from('sme_profiles')
+      .insert({
         id: smeId,
-        workspaceId: workspace.workspaceId,
-      });
+        workspace_id: workspace.workspaceId,
+        user_id: workspace.userId,
+        name: sme.name,
+        email: sme.email,
+        expertise: sme.expertise || [],
+        biography: sme.biography,
+        preferred_topics: sme.preferredTopics || [],
+        capacity_hours_per_month: sme.capacityHoursPerMonth || 3,
+        attribution_rules: sme.attributionRules || {},
+        past_contributions: sme.pastContributions || [],
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[API] SME insert error:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to create SME' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      sme: {
-        id: smeId,
-        ...sme,
-        workspaceId: workspace.workspaceId,
-      },
+      sme: { id: smeId, ...sme, workspaceId: workspace.workspaceId },
     });
   } catch (error) {
     console.error('[API] SME creation error:', error);
@@ -143,7 +107,6 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -154,47 +117,40 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { smeId, sme } = body;
-    const workspaceId = workspace.workspaceId;
 
     if (!smeId) {
       return NextResponse.json({ error: 'SME ID is required' }, { status: 400 });
     }
 
-    let updated;
+    const supabase = createServerClient();
+    const { error: updateError, data } = await supabase
+      .from('sme_profiles')
+      .update({
+        name: sme?.name,
+        email: sme?.email,
+        expertise: sme?.expertise,
+        biography: sme?.biography,
+        preferred_topics: sme?.preferredTopics,
+        capacity_hours_per_month: sme?.capacityHoursPerMonth,
+        attribution_rules: sme?.attributionRules,
+        past_contributions: sme?.pastContributions,
+      })
+      .eq('id', smeId)
+      .eq('workspace_id', workspace.workspaceId)
+      .select()
+      .single();
 
-    if (smeRepository) {
-      try {
-        updated = await smeRepository.update(workspaceId, smeId, {
-          name: sme?.name,
-          email: sme?.email,
-          expertise: sme?.expertise,
-          biography: sme?.biography,
-          preferredTopics: sme?.preferredTopics,
-          capacityHoursPerMonth: sme?.capacityHoursPerMonth,
-          attributionRules: sme?.attributionRules,
-          pastContributions: sme?.pastContributions,
-        });
-      } catch (dbError) {
-        console.warn('[API] Database update failed, falling back to in-memory store:', dbError);
-        updated = updateSME(workspaceId, smeId, {
-          ...sme,
-          workspaceId,
-        });
-      }
-    } else {
-      updated = updateSME(workspaceId, smeId, {
-        ...sme,
-        workspaceId,
-      });
-    }
-
-    if (!updated) {
-      return NextResponse.json({ error: 'SME not found' }, { status: 404 });
+    if (updateError || !data) {
+      console.error('[API] SME update error:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update SME' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      sme: updated,
+      sme: { ...data, ...sme, workspaceId: workspace.workspaceId },
     });
   } catch (error) {
     console.error('[API] SME update error:', error);
@@ -207,7 +163,6 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -217,33 +172,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const workspaceId = workspace.workspaceId;
     const smeId = searchParams.get('smeId');
 
     if (!smeId) {
       return NextResponse.json({ error: 'SME ID is required' }, { status: 400 });
     }
 
-    if (smeRepository) {
-      try {
-        // Check if SME exists first
-        const existing = await smeRepository.getById(workspaceId, smeId);
-        if (!existing) {
-          return NextResponse.json({ error: 'SME not found' }, { status: 404 });
-        }
-        await smeRepository.delete(workspaceId, smeId);
-      } catch (dbError) {
-        console.warn('[API] Database delete failed, falling back to in-memory store:', dbError);
-        const deleted = deleteSME(workspaceId, smeId);
-        if (!deleted) {
-          return NextResponse.json({ error: 'SME not found' }, { status: 404 });
-        }
-      }
-    } else {
-      const deleted = deleteSME(workspaceId, smeId);
-      if (!deleted) {
-        return NextResponse.json({ error: 'SME not found' }, { status: 404 });
-      }
+    const supabase = createServerClient();
+    const { error: deleteError } = await supabase
+      .from('sme_profiles')
+      .delete()
+      .eq('id', smeId)
+      .eq('workspace_id', workspace.workspaceId);
+
+    if (deleteError) {
+      console.error('[API] SME delete error:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete SME' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({

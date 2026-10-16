@@ -1,24 +1,12 @@
 // API route: /api/strategy/topics — Create and retrieve user-defined topics
-// Uses database with fallback to in-memory store for development
+// Fetches from database, never from memory store
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scoreAndBuildTopic, persistTopic, topicStore } from '@/lib/topic-store';
-import { getWorkspaceContext } from '@/lib/workspace-auth';
-
-// Try to load database client; it will be null if DATABASE_URL not set
-let topicRepository: any = null;
-try {
-  if (process.env.DATABASE_URL) {
-    const dbModule = require('@blog-agent/db');
-    topicRepository = dbModule.topicRepository;
-  }
-} catch (e) {
-  console.warn('[API] Database not available, using in-memory store');
-}
+import { scoreAndBuildTopic } from '@/lib/topic-store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -37,7 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a new topic
     if (action === 'create' && topic) {
       if (!topic.title || topic.title.trim() === '') {
         return NextResponse.json(
@@ -46,56 +33,59 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Score and build the topic
-      const scoredTopic = scoreAndBuildTopic(topic, strategy);
+      // Normalize strategy: API returns 'icps' but scoring expects 'targetIcps'
+      const normalizedStrategy = {
+        offerings: strategy.offerings || [],
+        targetIcps: strategy.targetIcps || strategy.icps || [],
+        geographies: strategy.geographies || [],
+        competitors: strategy.competitors || [],
+        contentMix: strategy.contentMix || {},
+      };
 
-      // Persist to database if available
-      if (topicRepository) {
-        try {
-          await topicRepository.create({
-            id: scoredTopic.id,
-            workspaceId: workspace.workspaceId,
-            strategyId,
-            title: scoredTopic.title,
-            summary: scoredTopic.summary,
-            angle: scoredTopic.angle,
-            format: scoredTopic.format || 'blog',
-            geography: scoredTopic.geography,
-            audience: scoredTopic.audience,
-            targetOffering: scoredTopic.targetOffering,
-            score: scoredTopic.score,
-            confidence: scoredTopic.confidence,
-            breakdown: scoredTopic.breakdown,
-            cannibalizationRisk: scoredTopic.cannibalizationRisk,
-            recommendedSmes: scoredTopic.recommendedSmes,
-            missingInputs: scoredTopic.missingInputs,
-          });
-        } catch (dbError) {
-          console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
-          persistTopic(strategyId, scoredTopic);
-        }
-      } else {
-        // Persist to topicStore
-        persistTopic(strategyId, scoredTopic);
+      const scoredTopic = scoreAndBuildTopic(topic, normalizedStrategy);
+
+      // Save to database
+      const supabase = createServerClient();
+      const { error: insertError } = await supabase
+        .from('topic_candidates')
+        .insert({
+          id: scoredTopic.id,
+          workspace_id: workspace.workspaceId,
+          strategy_id: strategyId,
+          title: scoredTopic.title,
+          summary: scoredTopic.summary,
+          angle: scoredTopic.angle,
+          format: scoredTopic.format || 'blog',
+          geography: scoredTopic.geography,
+          audience: scoredTopic.audience,
+          target_offering: scoredTopic.targetOffering,
+          score: scoredTopic.score,
+          confidence: scoredTopic.confidence,
+          breakdown: scoredTopic.breakdown,
+          cannibalization_risk: scoredTopic.cannibalizationRisk,
+          recommended_smes: scoredTopic.recommendedSmes,
+          missing_inputs: scoredTopic.missingInputs,
+        });
+
+      if (insertError) {
+        console.error('[API] Topic insert error:', insertError);
+        return NextResponse.json(
+          { error: 'Failed to save topic' },
+          { status: 400 }
+        );
       }
 
-      // Get updated list from appropriate source
-      let updatedList;
-      if (topicRepository) {
-        try {
-          const dbTopics = await topicRepository.listByStrategy(workspace.workspaceId, strategyId);
-          updatedList = dbTopics;
-        } catch (dbError) {
-          updatedList = topicStore.get(strategyId) || [];
-        }
-      } else {
-        updatedList = topicStore.get(strategyId) || [];
-      }
+      // Fetch updated list from database
+      const { data: topics } = await supabase
+        .from('topic_candidates')
+        .select('*')
+        .eq('strategy_id', strategyId)
+        .eq('workspace_id', workspace.workspaceId);
 
       return NextResponse.json({
         success: true,
         topic: scoredTopic,
-        topics: updatedList,
+        topics: topics || [],
         message: 'Topic created and scored successfully',
       });
     }
@@ -115,7 +105,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get workspace from authenticated user
     const workspace = await getWorkspaceContext(request);
     if (!workspace) {
       return NextResponse.json(
@@ -125,47 +114,30 @@ export async function GET(request: NextRequest) {
     }
 
     const strategyId = request.nextUrl.searchParams.get('strategyId');
-    const workspaceId = workspace.workspaceId;
 
     if (!strategyId) {
       return NextResponse.json({ error: 'strategyId is required' }, { status: 400 });
     }
 
-    let topics;
+    const supabase = createServerClient();
+    const { data: topics, error } = await supabase
+      .from('topic_candidates')
+      .select('*')
+      .eq('strategy_id', strategyId)
+      .eq('workspace_id', workspace.workspaceId);
 
-    if (topicRepository) {
-      try {
-        const dbTopics = await topicRepository.listByStrategy(workspaceId, strategyId);
-        topics = dbTopics.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          summary: t.summary,
-          angle: t.angle,
-          format: t.format,
-          geography: t.geography,
-          audience: t.audience,
-          targetOffering: t.targetOffering,
-          score: t.score,
-          confidence: t.confidence,
-          breakdown: t.breakdown,
-          cannibalizationRisk: t.cannibalizationRisk,
-          recommendedSmes: t.recommendedSmes,
-          missingInputs: t.missingInputs,
-          createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
-        }));
-      } catch (dbError) {
-        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
-        topics = topicStore.get(strategyId) || [];
-      }
-    } else {
-      topics = topicStore.get(strategyId) || [];
+    if (error) {
+      console.error('[API] Topic fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch topics' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       strategyId,
-      topicCount: topics.length,
-      topics,
+      topicCount: topics?.length || 0,
+      topics: topics || [],
     });
   } catch (error) {
     console.error('[API] Topic retrieval error:', error);

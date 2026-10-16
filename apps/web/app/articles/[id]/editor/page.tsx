@@ -13,6 +13,7 @@ import { CrosslinkManager } from '@/components/crosslink-manager';
 import { CTAGenerator } from '@/components/cta-generator';
 import { ImageGallery } from '@/components/image-gallery';
 import { BriefingInsightsPanel } from '@/components/briefing-insights-panel';
+import { ArticleFeedback } from '@/components/article-feedback';
 import { validateTransition, type ArticleStage, STAGE_COLORS, STAGE_LABELS } from '@blog-agent/domain';
 import type { BriefingInsights } from '@/lib/briefing-insights';
 
@@ -103,7 +104,10 @@ export default function ArticleEditorPage() {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'sources'>('brief');
+  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'feedback' | 'sources'>('brief');
+
+  // Feedback state
+  const [comments, setComments] = useState<any[]>([]);
 
   // All functions must be defined before useEffect hooks that call them
   const fetchSources = async () => {
@@ -121,6 +125,18 @@ export default function ArticleEditorPage() {
     }
   };
 
+  const fetchComments = async () => {
+    try {
+      const response = await fetch(`/api/articles/${id}/comments`);
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data.comments || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch comments:', err);
+    }
+  };
+
   const fetchArticle = async () => {
     try {
       setLoading(true);
@@ -128,6 +144,19 @@ export default function ArticleEditorPage() {
       if (!response.ok) throw new Error('Article not found');
 
       const data = await response.json();
+
+      // Log the entire response to see all fields
+      console.log('[Editor] FULL response object:', data);
+      console.log('[Editor] Response keys:', Object.keys(data));
+
+      // Check for briefing fields specifically
+      console.log('[Editor] Briefing fields:', {
+        'has briefingSessionId key': 'briefingSessionId' in data,
+        'value of briefingSessionId': data.briefingSessionId,
+        'has briefingInsights key': 'briefingInsights' in data,
+        'value of briefingInsights': data.briefingInsights,
+      });
+
       setArticle(data);
       setBrief(data.brief || '');
       setAngle(data.angle || '');
@@ -359,6 +388,13 @@ export default function ArticleEditorPage() {
       handleGenerateImages();
     }
   }, [activeTab, article?.title, selectedImage]);
+
+  // Fetch comments when feedback tab is accessed
+  useEffect(() => {
+    if (activeTab === 'feedback' && id) {
+      fetchComments();
+    }
+  }, [activeTab, id]);
 
   useEffect(() => {
     if (id) fetchArticle();
@@ -597,16 +633,28 @@ export default function ArticleEditorPage() {
     setError('');
 
     try {
+      console.log('[Draft] Article object:', {
+        title: article?.title,
+        briefingSessionId: article?.briefingSessionId,
+        briefingInsights: article?.briefingInsights,
+        hasInsights: !!article?.briefingInsights && Object.keys(article.briefingInsights).length > 0,
+      });
+
+      const payload = {
+        title: article?.title,
+        brief,
+        outline,
+        targetAudience: audience || undefined,
+        workspaceId: contextWorkspaceId,
+        briefingInsights: article?.briefingInsights || undefined,
+      };
+
+      console.log('[Draft] Request payload:', payload);
+
       const draftResponse = await fetch('/api/articles/generate-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: article?.title,
-          brief,
-          outline,
-          targetAudience: audience || undefined,
-          workspaceId: contextWorkspaceId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!draftResponse.ok) throw new Error('Failed to generate draft');
@@ -689,8 +737,59 @@ export default function ArticleEditorPage() {
     }
   };
 
+  const handleSubmitForReview = async () => {
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/articles/${id}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit',
+        }),
+      });
+
+      if (response.ok) {
+        await fetchArticle();
+      } else {
+        setError('Failed to submit for review');
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const canTransition = (to: ArticleStage) => {
     return validateTransition(currentStage, to).valid;
+  };
+
+  // Check if tab should be enabled based on content availability
+  const isTabEnabled = (tab: string): boolean => {
+    const hasContent = !!(content && content.trim().length > 0);
+    const hasTitle = !!(article && article.title && article.title.trim().length > 0);
+
+    switch (tab) {
+      case 'seo':
+      case 'crosslinks':
+      case 'cta':
+      case 'score':
+        return hasContent;
+      case 'images':
+        return hasTitle && hasContent;
+      case 'feedback':
+        // Enable only when content exists AND article is submitted for review
+        return hasContent && (currentStage === 'READY_FOR_REVIEW' || currentStage === 'APPROVED' || currentStage === 'CHANGES_REQUESTED');
+      case 'workflow':
+      case 'sources':
+        return true; // Always enabled
+      case 'brief':
+      case 'outline':
+      case 'content':
+        return true; // Always enabled
+      default:
+        return true;
+    }
   };
 
   if (loading) {
@@ -731,8 +830,8 @@ export default function ArticleEditorPage() {
             {/* Save Status Indicator */}
             {saveStatus && (
               <div className={`px-3 py-2 rounded text-sm font-medium ${saveStatus === 'success'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
                 }`}>
                 {saveStatus === 'success' ? '✓ Saved' : '✗ Save failed'}
               </div>
@@ -753,14 +852,21 @@ export default function ArticleEditorPage() {
             {/* Tabs */}
             <div className="bg-white border border-slate-200 rounded-lg">
               <div className="flex border-b border-slate-200 overflow-x-auto">
-                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'cta', 'images', 'score', 'workflow', 'sources'] as const).map((tab) => (
+                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'cta', 'images', 'sources', 'score', 'feedback', 'workflow'] as const).map((tab) => {
+                  const enabled = isTabEnabled(tab);
+                  return (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab
+                    onClick={() => enabled && setActiveTab(tab)}
+                    disabled={!enabled}
+                    className={`px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${
+                      !enabled
+                        ? 'opacity-40 cursor-not-allowed text-slate-400'
+                        : activeTab === tab
                         ? 'border-b-2 border-signal text-signal'
                         : 'text-slate-600 hover:text-slate-900'
                       }`}
+                    title={!enabled ? 'Add content to enable this tab' : ''}
                   >
                     {tab === 'brief' && '📋 Brief'}
                     {tab === 'outline' && '📑 Outline'}
@@ -771,9 +877,11 @@ export default function ArticleEditorPage() {
                     {tab === 'images' && '🖼️ Images'}
                     {tab === 'score' && '✓ Publish-Ready'}
                     {tab === 'workflow' && '🔄 Workflow'}
+                    {tab === 'feedback' && '💬 Feedback'}
                     {tab === 'sources' && '📚 Sources'}
                   </button>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="p-6">
@@ -933,6 +1041,8 @@ export default function ArticleEditorPage() {
                     claimsVerified={0}
                     totalClaims={0}
                     hasCTA={!!selectedCTA}
+                    isSubmitting={saving}
+                    onSubmitForReview={handleSubmitForReview}
                   />
                 )}
 
@@ -941,6 +1051,19 @@ export default function ArticleEditorPage() {
                     currentStage={currentStage}
                     onStageChange={handleStageChange as any}
                     canTransition={canTransition as any}
+                  />
+                )}
+
+                {activeTab === 'feedback' && (
+                  <ArticleFeedback
+                    articleId={id}
+                    articleStatus={currentStage}
+                    comments={comments}
+                    userRole={user?.role || 'marketer'}
+                    onCommentAdded={() => {
+                      fetchComments();
+                      fetchArticle();
+                    }}
                   />
                 )}
 

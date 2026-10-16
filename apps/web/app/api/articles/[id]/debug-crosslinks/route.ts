@@ -1,5 +1,8 @@
+// API route: GET /api/articles/[id]/debug-crosslinks — Debug crosslink analysis
+// Fetches articles from Supabase
+
 import { NextRequest, NextResponse } from 'next/server';
-import { articleStore } from '../../store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 function extractKeywords(text: string): Set<string> {
   const stopwords = new Set([
@@ -39,6 +42,14 @@ function calculateSimilarity(keywords1: Set<string>, keywords2: Set<string>): nu
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = request.nextUrl;
     const strategyId = searchParams.get('strategyId');
 
@@ -46,20 +57,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
     }
 
-    const currentArticle = articleStore.get(params.id);
-    if (!currentArticle) {
+    const supabase = createServerClient();
+
+    // Get current article
+    const { data: currentArticle, error: currentError } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('id', params.id)
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
+
+    if (currentError || !currentArticle) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
 
-    const allArticles = Array.from(articleStore.values());
-    const strategyArticles = allArticles.filter((a) => a.strategyId === strategyId);
-    const otherArticles = strategyArticles.filter((a) => a.id !== params.id);
+    // Get all articles in the same strategy
+    const { data: strategyArticles, error: articlesError } = await supabase
+      .from('articles')
+      .select('id, title, content')
+      .eq('workspace_id', workspace.workspaceId)
+      .eq('strategy_id', strategyId)
+      .neq('id', params.id);
+
+    if (articlesError || !strategyArticles) {
+      return NextResponse.json({ error: 'Failed to fetch articles' }, { status: 500 });
+    }
 
     // Extract keywords
     const currentKeywords = extractKeywords(`${currentArticle.title} ${currentArticle.content || ''}`);
 
     // Calculate similarity for each
-    const analyzed = otherArticles.map((a) => {
+    const analyzed = strategyArticles.map((a: any) => {
       const otherKeywords = extractKeywords(`${a.title} ${a.content || ''}`);
       const similarity = calculateSimilarity(currentKeywords, otherKeywords);
       const intersection = new Set([...currentKeywords].filter(k => otherKeywords.has(k)));
@@ -83,7 +111,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         currentArticleId: params.id,
         currentArticleTitle: currentArticle.title,
         currentKeywordCount: currentKeywords.size,
-        otherArticlesAvailable: otherArticles.length,
+        otherArticlesAvailable: strategyArticles.length,
       },
       analysis: analyzed,
       suggestions: analyzed.filter((a) => a.similarity >= 20),

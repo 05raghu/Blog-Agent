@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
+  const [role, setRole] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -57,6 +58,7 @@ export default function SignupPage() {
           password,
           workspaceName,
           workspaceSlug,
+          role,
         }),
       });
 
@@ -122,6 +124,26 @@ export default function SignupPage() {
                 disabled={loading}
               />
               <p className="text-xs text-slate-500 mt-1">Your workspace name for managing content</p>
+            </div>
+
+            {/* Role Selection */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-slate-900 mb-1">
+                Your Role
+              </label>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-signal focus:border-transparent"
+                disabled={loading}
+              >
+                <option value="admin">👤 Admin (Full access)</option>
+                <option value="editor">📝 Reviewer (Approve articles)</option>
+                <option value="marketer">✍️ Author (Write articles)</option>
+                <option value="sme">🧠 SME (Subject matter expert)</option>
+              </select>
+              <p className="text-xs text-slate-500 mt-1">Choose your role in this workspace</p>
             </div>
 
             {/* Email */}
@@ -211,11 +233,6 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 text-center text-xs text-slate-500">
-          <p>Blog Agent v1.0 • Custom Auth</p>
         </div>
       </div>
     </div>

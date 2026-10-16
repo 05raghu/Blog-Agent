@@ -1,8 +1,9 @@
 // API route: POST /api/sme/recommend
 // Get recommended SMEs for a topic using PRD P0.4 scoring
+// Fetches SMEs from Supabase
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSMEsByWorkspace } from '@/lib/sme-store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 interface SMERecommendation {
   smeId: string;
@@ -118,8 +119,16 @@ function recommendSMEsForTopic(topic: any, smes: any[]): SMERecommendation[] {
 
 export async function POST(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { workspaceId = 'default-workspace', topic } = body;
+    const { topic } = body;
 
     if (!topic || !topic.title) {
       return NextResponse.json(
@@ -128,10 +137,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all SMEs for this workspace
-    const smes = getSMEsByWorkspace(workspaceId);
+    // Fetch all SMEs from Supabase for this workspace
+    const supabase = createServerClient();
+    const { data: smes, error } = await supabase
+      .from('sme_profiles')
+      .select('*')
+      .eq('workspace_id', workspace.workspaceId);
 
-    if (smes.length === 0) {
+    if (error) {
+      console.error('[API] Error fetching SMEs:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch SMEs' },
+        { status: 500 }
+      );
+    }
+
+    if (!smes || smes.length === 0) {
       return NextResponse.json({
         success: true,
         recommendations: [],
@@ -139,8 +160,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Map Supabase format to expected format for recommendation logic
+    const formattedSmes = smes.map((sme: any) => ({
+      id: sme.id,
+      name: sme.name,
+      expertise: sme.expertise || [],
+      capacityHoursPerMonth: sme.capacity_hours_per_month || 0,
+      hoursUsed: sme.hours_used || 0,
+      pastContributions: sme.past_contributions || [],
+    }));
+
     // Get recommendations
-    const recommendations = recommendSMEsForTopic(topic, smes);
+    const recommendations = recommendSMEsForTopic(topic, formattedSmes);
 
     return NextResponse.json({
       success: true,

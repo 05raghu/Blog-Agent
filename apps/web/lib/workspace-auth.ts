@@ -50,13 +50,23 @@ function decodeJWT(token: string): Record<string, any> | null {
  */
 export async function getWorkspaceContext(request: NextRequest): Promise<WorkspaceContext | null> {
   try {
+    let token: string | null = null;
+
+    // First, try to get token from Authorization header
     const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.warn('[Workspace Auth] No Bearer token in request');
-      return null;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7); // Remove 'Bearer ' prefix
     }
 
-    const token = authHeader.slice(7); // Remove 'Bearer ' prefix
+    // If no Authorization header, try to get from cookies
+    if (!token) {
+      token = request.cookies.get('authToken')?.value || null;
+    }
+
+    if (!token) {
+      console.warn('[Workspace Auth] No token found in Authorization header or cookies');
+      return null;
+    }
 
     // Decode JWT payload (without signature verification for now)
     const payload = decodeJWT(token);
@@ -65,15 +75,27 @@ export async function getWorkspaceContext(request: NextRequest): Promise<Workspa
       return null;
     }
 
-    const userId = payload.sub; // 'sub' is the user ID in Supabase JWT
+    // Handle both custom JWT format (userId, workspaceId) and Supabase JWT format (sub)
+    const userId = payload.userId || payload.sub;
     const email = payload.email;
+    const workspaceId = payload.workspaceId;
 
     if (!userId) {
       console.warn('[Workspace Auth] No user ID in JWT');
       return null;
     }
 
-    // Query memberships table to get user's workspace and role
+    // If workspaceId is already in the token, use it
+    if (workspaceId) {
+      return {
+        userId,
+        workspaceId,
+        role: (payload.role || 'marketer') as WorkspaceContext['role'],
+        email: email || 'unknown@example.com',
+      };
+    }
+
+    // Otherwise, query memberships table to get user's workspace and role
     const supabase = createServerClient();
     const { data: membership, error } = await supabase
       .from('memberships')
@@ -84,7 +106,6 @@ export async function getWorkspaceContext(request: NextRequest): Promise<Workspa
     if (error || !membership) {
       console.warn('[Workspace Auth] No membership found for user:', userId, error?.message);
       // Fallback: create a default workspace for this user if none exists
-      // Or return a demo workspace - implementation depends on policy
       return {
         userId,
         workspaceId: `workspace_${userId}`, // Generate workspace from user ID
@@ -96,7 +117,7 @@ export async function getWorkspaceContext(request: NextRequest): Promise<Workspa
     return {
       userId,
       workspaceId: membership.workspace_id,
-      role: membership.role,
+      role: membership.role as WorkspaceContext['role'],
       email: email || 'unknown@example.com',
     };
   } catch (error) {

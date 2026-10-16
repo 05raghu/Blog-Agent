@@ -1,22 +1,19 @@
 // API route: GET/POST /api/knowledge/sources
-// Uses database with fallback to in-memory store for development
+// Fetches from Supabase, never from memory store
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sourceStore, type Source } from '../store';
-
-// Try to load database client; it will be null if DATABASE_URL not set
-let sourceRepository: any = null;
-try {
-  if (process.env.DATABASE_URL) {
-    const dbModule = require('@blog-agent/db');
-    sourceRepository = dbModule.sourceRepository;
-  }
-} catch (e) {
-  console.warn('[API] Database not available, using in-memory store');
-}
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const strategyId = searchParams.get('strategyId');
 
@@ -24,64 +21,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
     }
 
-    let sources;
+    const supabase = createServerClient();
+    const { data: sources, error } = await supabase
+      .from('sources')
+      .select('*')
+      .eq('workspace_id', workspace.workspaceId);
 
-    if (sourceRepository) {
-      try {
-        const dbSources = await sourceRepository.listByWorkspace(strategyId);
-        sources = dbSources.map((source: any) => ({
-          id: source.id,
-          type: source.type,
-          title: source.title,
-          canonicalUrl: source.canonicalUrl,
-          author: source.author,
-          description: source.description,
-          transcriptText: source.transcriptText,
-          sensitivityLevel: source.sensitivityLevel,
-          citationPermission: source.citationPermission,
-          trustTier: source.trustTier,
-          createdAt: source.createdAt,
-          updatedAt: source.updatedAt,
-        }));
-      } catch (dbError) {
-        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
-        sources = Array.from(sourceStore.values())
-          .filter((source) => source.workspaceId === strategyId)
-          .map((source) => ({
-            id: source.id,
-            type: source.type,
-            title: source.title,
-            canonicalUrl: source.canonicalUrl,
-            author: source.author,
-            description: source.description,
-            transcriptText: source.transcriptText,
-            sensitivityLevel: source.sensitivityLevel,
-            citationPermission: source.citationPermission,
-            trustTier: source.trustTier,
-            createdAt: source.createdAt,
-            updatedAt: source.updatedAt,
-          }));
-      }
-    } else {
-      sources = Array.from(sourceStore.values())
-        .filter((source) => source.workspaceId === strategyId)
-        .map((source) => ({
-          id: source.id,
-          type: source.type,
-          title: source.title,
-          canonicalUrl: source.canonicalUrl,
-          author: source.author,
-          description: source.description,
-          transcriptText: source.transcriptText,
-          sensitivityLevel: source.sensitivityLevel,
-          citationPermission: source.citationPermission,
-          trustTier: source.trustTier,
-          createdAt: source.createdAt,
-          updatedAt: source.updatedAt,
-        }));
+    if (error) {
+      console.error('[API] Sources fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch sources' },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ sources });
+    const mappedSources = (sources || []).map((source: any) => ({
+      id: source.id,
+      type: source.type,
+      title: source.title,
+      canonicalUrl: source.canonical_url,
+      author: source.author,
+      description: source.description,
+      transcriptText: source.transcript_text,
+      sensitivityLevel: source.sensitivity_level,
+      citationPermission: source.citation_permission,
+      trustTier: source.trust_tier,
+      createdAt: source.created_at,
+      updatedAt: source.updated_at,
+    }));
+
+    return NextResponse.json({ sources: mappedSources });
   } catch (error) {
     console.error('[API] Sources fetch error:', error);
     return NextResponse.json(
@@ -93,6 +62,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { strategyId, type, title, canonicalUrl, author, description, transcriptText, sensitivityLevel, citationPermission } = body;
 
@@ -132,60 +109,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sourceId = `source_${crypto.randomUUID()}`;
-    const now = new Date();
+    const sourceId = `source_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const contentHash = Buffer.from(title + (canonicalUrl || transcriptText || description || '')).toString('hex');
 
-    const sourceData = {
-      id: sourceId,
-      workspaceId: strategyId,
-      type: type as Source['type'],
-      title,
-      canonicalUrl,
-      author,
-      description,
-      transcriptText,
-      sensitivityLevel: sensitivityLevel || 'public',
-      citationPermission: citationPermission || false,
-      trustTier: 'unreviewed',
-      createdAt: now,
-      updatedAt: now,
-    };
+    const supabase = createServerClient();
+    const { error: insertError } = await supabase
+      .from('sources')
+      .insert({
+        id: sourceId,
+        workspace_id: workspace.workspaceId,
+        type,
+        title,
+        description,
+        canonical_url: canonicalUrl,
+        author,
+        sensitivity_level: sensitivityLevel || 'public',
+        citation_permission: citationPermission || false,
+        transcript_text: transcriptText,
+        content_hash: contentHash,
+        trust_tier: 'unreviewed',
+      })
+      .select()
+      .single();
 
-    if (sourceRepository) {
-      try {
-        await sourceRepository.create({
-          id: sourceId,
-          workspaceId: strategyId,
-          type,
-          title,
-          description,
-          canonicalUrl,
-          author,
-          sensitivityLevel: sensitivityLevel || 'public',
-          citationPermission: citationPermission || false,
-          transcriptText,
-          contentHash,
-          trustTier: 'unreviewed',
-        });
-      } catch (dbError) {
-        console.warn('[API] Database insert failed, falling back to in-memory store:', dbError);
-        sourceStore.set(sourceId, sourceData as Source);
-      }
-    } else {
-      sourceStore.set(sourceId, sourceData as Source);
+    if (insertError) {
+      console.error('[API] Source insert error:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to create source' },
+        { status: 400 }
+      );
     }
 
-    console.log(`[API] Created source ${sourceId} for strategy ${strategyId}`);
+    console.log(`[API] Created source ${sourceId} for workspace ${workspace.workspaceId}`);
 
     return NextResponse.json({
-      id: sourceId,
-      title,
-      type,
-      sensitivityLevel: sensitivityLevel || 'public',
-      citationPermission: citationPermission || false,
-      trustTier: 'unreviewed',
-      createdAt: now,
+      success: true,
+      source: {
+        id: sourceId,
+        type,
+        title,
+        canonicalUrl,
+        author,
+        description,
+        transcriptText,
+        sensitivityLevel: sensitivityLevel || 'public',
+        citationPermission: citationPermission || false,
+        trustTier: 'unreviewed',
+        createdAt: new Date(),
+      },
     });
   } catch (error) {
     console.error('[API] Source creation error:', error);

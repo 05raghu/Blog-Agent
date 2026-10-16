@@ -1,84 +1,118 @@
 // API route: POST /api/strategy/topics/generate — Generate topic candidates via LLM
+// Fetches strategy from database, generates topics via LLM, persists to database
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
-import { scoreAndBuildTopic, persistTopic, topicStore } from '@/lib/topic-store';
-import { strategyStore } from '@/lib/strategy-store';
+import { scoreAndBuildTopic } from '@/lib/topic-store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { strategyId, seed } = body as { strategyId?: string; seed?: string };
-
-    console.log('[API] Generate topics request:', { strategyId, seed });
 
     if (!strategyId) {
       return NextResponse.json({ error: 'strategyId is required' }, { status: 400 });
     }
 
-    const strategy = strategyStore.get(strategyId);
-    if (!strategy) {
+    const supabase = createServerClient();
+
+    // Fetch strategy from database
+    const { data: dbStrategy, error: strategyError } = await supabase
+      .from('strategy_versions')
+      .select('*')
+      .eq('id', strategyId)
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
+
+    if (strategyError || !dbStrategy) {
       console.error('[API] Strategy not found:', strategyId);
-      console.error('[API] Available strategies:', Array.from(strategyStore.keys()));
       return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
     }
 
-    console.log('[API] Strategy found:', strategy.id, strategy.title);
+    const strategy = {
+      offerings: dbStrategy.offerings || [],
+      targetIcps: dbStrategy.icps || [],
+      geographies: dbStrategy.geographies || [],
+      competitors: dbStrategy.competitors || [],
+      contentMix: dbStrategy.content_mix || {},
+    };
 
     const provider = await getTextModelProvider();
-    console.log('[API] Text model provider ready');
 
+    // Generate topic candidates via LLM
     const rawCandidates = await provider.generateTopicCandidates({
-      strategy: {
-        offerings: strategy.offerings || [],
-        targetIcps: strategy.targetIcps || [],
-        geographies: strategy.geographies || [],
-        competitors: strategy.competitors || [],
-        contentMix: strategy.contentMix || {},
-      },
+      strategy,
       seed: seed?.trim() || undefined,
       count: 10,
     });
 
-    console.log('[API] Generated', rawCandidates.length, 'topic candidates');
-
-    // Score each candidate and persist
+    // Score each candidate
     const scored = rawCandidates.map((c) => {
-      try {
-        return scoreAndBuildTopic(c, strategy);
-      } catch (scoreErr) {
-        console.error('[API] Error scoring topic:', c.title, scoreErr);
-        throw scoreErr;
-      }
+      return scoreAndBuildTopic(c, strategy);
     });
 
-    console.log('[API] Scored', scored.length, 'topics');
+    // Persist all scored topics to database
+    const { error: insertError } = await supabase
+      .from('topic_candidates')
+      .insert(
+        scored.map((topic) => ({
+          id: topic.id,
+          workspace_id: workspace.workspaceId,
+          strategy_id: strategyId,
+          title: topic.title,
+          summary: topic.summary,
+          angle: topic.angle,
+          format: topic.format || 'blog',
+          geography: topic.geography,
+          audience: topic.audience,
+          target_offering: topic.targetOffering,
+          score: topic.score,
+          confidence: topic.confidence,
+          breakdown: topic.breakdown,
+          cannibalization_risk: topic.cannibalizationRisk,
+          recommended_smes: topic.recommendedSmes,
+          missing_inputs: topic.missingInputs,
+        }))
+      );
 
-    let allTopics = topicStore.get(strategyId) || [];
-    for (const topic of scored) {
-      allTopics = persistTopic(strategyId, topic);
+    if (insertError) {
+      console.error('[API] Error persisting topics:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to save generated topics' },
+        { status: 400 }
+      );
     }
 
-    console.log('[API] Persisted topics, total now:', allTopics.length);
+    // Fetch updated list from database
+    const { data: allTopics } = await supabase
+      .from('topic_candidates')
+      .select('*')
+      .eq('strategy_id', strategyId)
+      .eq('workspace_id', workspace.workspaceId);
 
     return NextResponse.json({
       success: true,
       requested: 10,
       generated: scored,
-      topics: allTopics,
+      topics: allTopics || [],
       strategyId,
     });
   } catch (error) {
     console.error('[API] Topic generation error:', error);
     const message = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack : undefined;
-    console.error('[API] Error stack:', stack);
-
     return NextResponse.json(
       {
         error: 'Failed to generate topics',
         message,
-        details: stack?.split('\n').slice(0, 3).join(' '),
       },
       { status: 500 }
     );

@@ -48,7 +48,7 @@ const EditIcon = () => (
 function KnowledgeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { workspaceId, user, loading: authLoading } = useWorkspace();
+  const { user, loading: authLoading } = useWorkspace();
   const strategyId = searchParams?.get('strategyId');
 
   // All hooks must be declared before any conditional returns
@@ -121,7 +121,10 @@ function KnowledgeContent() {
 
   const loadBrandProfile = async () => {
     try {
-      const response = await fetch(`/api/knowledge/brand-profile?workspaceId=${workspaceId}`);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/knowledge/brand-profile', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.profile) {
@@ -1928,11 +1931,14 @@ function KnowledgeContent() {
                       setIsSavingBrandProfile(true);
 
                       try {
+                        const token = localStorage.getItem('authToken');
                         const response = await fetch('/api/knowledge/brand-profile', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                          },
                           body: JSON.stringify({
-                            workspaceId,
                             guidelines: brandGuidelines,
                             strongExemplars,
                             weakExemplars,

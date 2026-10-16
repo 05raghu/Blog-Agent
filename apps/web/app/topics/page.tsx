@@ -105,11 +105,13 @@ function TopicsContent() {
         strategyData = JSON.parse(cached);
       } else {
         // Fallback: fetch from API
-        const strategyResponse = await fetch(`/api/strategy?id=${strategyId}`);
+        const strategyResponse = await fetch(`/api/strategy?strategyId=${strategyId}`);
         if (!strategyResponse.ok) {
           throw new Error('Strategy not found. Create one first at /strategy');
         }
-        strategyData = await strategyResponse.json();
+        const data = await strategyResponse.json();
+        // API returns { strategies: [...] }, extract the first matching strategy
+        strategyData = data.strategies?.[0] || data;
       }
 
       // Store strategy data for form use
@@ -254,11 +256,14 @@ function TopicsContent() {
   const fetchSmeRecommendations = async (topic: Topic) => {
     try {
       setLoadingRecommendations(true);
+      const token = localStorage.getItem('authToken');
       const response = await fetch('/api/sme/recommend', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
-          workspaceId,
           topic: {
             title: topic.title,
             summary: topic.summary,
@@ -634,8 +639,7 @@ function TopicsContent() {
             );
             if (incompleteSession) {
               setError(
-                `⚠️ SME briefing session is incomplete (${
-                  Object.keys(incompleteSession.responses || {}).length
+                `⚠️ SME briefing session is incomplete (${Object.keys(incompleteSession.responses || {}).length
                 } questions answered). Complete the briefing before creating the article, or proceed without it.`
               );
             }
@@ -848,7 +852,7 @@ function TopicsContent() {
                 👥 Manage SMEs
               </Link>
               <Link href="/strategy" className="btn-secondary text-sm">
-                Strategies
+                ← Back to Strategies
               </Link>
             </div>
           </div>
@@ -860,7 +864,7 @@ function TopicsContent() {
             <h3 className=" font-bold">Create New Topic</h3>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="btn-secondary text-sm"
+              className="btn-primary text-sm"
             >
               {showCreateForm ? '✕ Cancel' : '+ New Topic'}
             </button>
@@ -873,22 +877,20 @@ function TopicsContent() {
                 <button
                   type="button"
                   onClick={() => setCreateMode('manual')}
-                  className={`px-4 py-2 rounded font-medium text-sm transition ${
-                    createMode === 'manual'
-                      ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-4 py-2 rounded font-medium text-sm transition ${createMode === 'manual'
+                    ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   ✏️ Manual Entry
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreateMode('bulk')}
-                  className={`px-4 py-2 rounded font-medium text-sm transition ${
-                    createMode === 'bulk'
-                      ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-4 py-2 rounded font-medium text-sm transition ${createMode === 'bulk'
+                    ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   📤 Bulk Upload
                 </button>
@@ -896,119 +898,119 @@ function TopicsContent() {
 
               {/* Manual Entry Mode */}
               {createMode === 'manual' && (
-            <form onSubmit={handleCreateTopic} className="space-y-4">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-1">Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g., How to Build Scalable APIs"
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                />
-              </div>
+                <form onSubmit={handleCreateTopic} className="space-y-4">
+                  {/* Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="e.g., How to Build Scalable APIs"
+                      className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                    />
+                  </div>
 
-              {/* Summary */}
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-1">Summary</label>
-                <textarea
-                  value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  placeholder="Brief description of the topic..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                />
-              </div>
+                  {/* Summary */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Summary</label>
+                    <textarea
+                      value={formData.summary}
+                      onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                      placeholder="Brief description of the topic..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                    />
+                  </div>
 
-              {/* Grid: Angle, Offering, Format */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1">Angle</label>
-                  <input
-                    type="text"
-                    value={formData.angle}
-                    onChange={(e) => setFormData({ ...formData, angle: e.target.value })}
-                    placeholder="e.g., Best practices, vs comparison"
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                  />
-                </div>
+                  {/* Grid: Angle, Offering, Format */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Angle</label>
+                      <input
+                        type="text"
+                        value={formData.angle}
+                        onChange={(e) => setFormData({ ...formData, angle: e.target.value })}
+                        placeholder="e.g., Best practices, vs comparison"
+                        className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering</label>
-                  <select
-                    value={formData.targetOffering}
-                    onChange={(e) => setFormData({ ...formData, targetOffering: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                  >
-                    <option value="">Select offering...</option>
-                    {strategyData?.offerings?.map((offering: string) => (
-                      <option key={offering} value={offering}>
-                        {offering}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering</label>
+                      <select
+                        value={formData.targetOffering}
+                        onChange={(e) => setFormData({ ...formData, targetOffering: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                      >
+                        <option value="">Select offering...</option>
+                        {strategyData?.offerings?.map((offering: string) => (
+                          <option key={offering} value={offering}>
+                            {offering}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1">Format</label>
-                  <select
-                    value={formData.format}
-                    onChange={(e) => setFormData({ ...formData, format: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                  >
-                    <option value="blog">Blog</option>
-                    <option value="guide">Guide</option>
-                    <option value="case_study">Case Study</option>
-                    <option value="whitepaper">Whitepaper</option>
-                  </select>
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Format</label>
+                      <select
+                        value={formData.format}
+                        onChange={(e) => setFormData({ ...formData, format: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                      >
+                        <option value="blog">Blog</option>
+                        <option value="guide">Guide</option>
+                        <option value="case_study">Case Study</option>
+                        <option value="whitepaper">Whitepaper</option>
+                      </select>
+                    </div>
+                  </div>
 
-              {/* Grid: Geography, Audience */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1">Geography</label>
-                  <input
-                    type="text"
-                    value={formData.geography}
-                    onChange={(e) => setFormData({ ...formData, geography: e.target.value })}
-                    placeholder="e.g., North America, Global"
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                  />
-                </div>
+                  {/* Grid: Geography, Audience */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Geography</label>
+                      <input
+                        type="text"
+                        value={formData.geography}
+                        onChange={(e) => setFormData({ ...formData, geography: e.target.value })}
+                        placeholder="e.g., North America, Global"
+                        className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1">Audience</label>
-                  <input
-                    type="text"
-                    value={formData.audience}
-                    onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                    placeholder="e.g., Engineering leaders, CTOs"
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Audience</label>
+                      <input
+                        type="text"
+                        value={formData.audience}
+                        onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
+                        placeholder="e.g., Engineering leaders, CTOs"
+                        className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                      />
+                    </div>
+                  </div>
 
-              {/* Submit Button */}
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="submit"
-                  disabled={creatingTopic}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  {creatingTopic ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    '✓ Create Topic'
-                  )}
-                </button>
-              </div>
-            </form>
+                  {/* Submit Button */}
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="submit"
+                      disabled={creatingTopic}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      {creatingTopic ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        '✓ Create Topic'
+                      )}
+                    </button>
+                  </div>
+                </form>
               )}
 
               {/* Bulk Upload Mode */}
@@ -1017,7 +1019,7 @@ function TopicsContent() {
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-2">Upload File (CSV or JSON)</label>
                     <p className="text-xs text-slate-600 mb-3">
-                      📋 CSV: Columns should be: title, summary, angle, targetOffering, format, geography, audience<br/>
+                      📋 CSV: Columns should be: title, summary, angle, targetOffering, format, geography, audience<br />
                       📋 JSON: Array of objects with the same fields
                     </p>
                     <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition">
@@ -1074,7 +1076,7 @@ function TopicsContent() {
                       📝 Example CSV Format
                     </summary>
                     <pre className="mt-3 p-3 bg-slate-50 rounded text-xs overflow-x-auto">
-{`title,summary,angle,targetOffering,format,geography,audience
+                      {`title,summary,angle,targetOffering,format,geography,audience
 Kubernetes Guide,Container orchestration basics,Beginner,DevOps,guide,Global,DevOps Engineers
 API Security Best Practices,Secure your APIs,Advanced,Security,guide,North America,Security Teams`}
                     </pre>
@@ -1163,23 +1165,22 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     </div>
                     <div className="flex-1">
                       <h3 className="text-editorial text-lg mb-1">{topic.title}</h3>
-                    <p className="text-sm text-slate-600 mb-2">{topic.summary}</p>
-                    <div className="flex gap-3 items-center flex-wrap">
-                      <span className="inline-block px-3 py-1 bg-slate-100 rounded text-xs font-medium text-slate-700">
-                        {topic.format}
-                      </span>
-                      <span className={`inline-block px-3 py-1 rounded text-xs font-medium ${
-                        topic.source === 'ai'
+                      <p className="text-sm text-slate-600 mb-2">{topic.summary}</p>
+                      <div className="flex gap-3 items-center flex-wrap">
+                        <span className="inline-block px-3 py-1 bg-slate-100 rounded text-xs font-medium text-slate-700">
+                          {topic.format}
+                        </span>
+                        <span className={`inline-block px-3 py-1 rounded text-xs font-medium ${topic.source === 'ai'
                           ? 'bg-purple-100 text-purple-700'
                           : topic.source === 'manual'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {topic.source === 'ai' && '✨ AI Generated'}
-                        {topic.source === 'manual' && '✋ Manual'}
-                        {!topic.source && '📝 Unknown'}
-                      </span>
-                    </div>
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                          }`}>
+                          {topic.source === 'ai' && '✨ AI Generated'}
+                          {topic.source === 'manual' && '✋ Manual'}
+                          {!topic.source && '📝 Unknown'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1234,11 +1235,11 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   </div>
 
                   {/* Confidence & Missing Inputs */}
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <div className="flex justify-between text-xs mb-2">
+                  <div className="mt-3 pt-3  border-slate-200">
+                    {/* <div className="flex justify-between text-xs mb-2">
                       <span className="text-slate-700 font-medium">Confidence:</span>
                       <span className="font-bold text-ink-950">{topic.confidence || 0}%</span>
-                    </div>
+                    </div> */}
                     {topic.missingInputs && topic.missingInputs.length > 0 && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                         <div className="text-xs font-medium text-yellow-900 mb-1">Missing Inputs:</div>
@@ -1502,7 +1503,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
               {/* Options for topics with articles */}
               {topicToArticleMap.has(topicToDelete.id) && (
                 <div className="mb-6 space-y-3">
-                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{borderColor: deleteOption === 'topic-only' ? '#3b82f6' : '#e2e8f0'}}>
+                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{ borderColor: deleteOption === 'topic-only' ? '#3b82f6' : '#e2e8f0' }}>
                     <input
                       type="radio"
                       name="deleteOption"
@@ -1517,7 +1518,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     </div>
                   </label>
 
-                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{borderColor: deleteOption === 'with-articles' ? '#3b82f6' : '#e2e8f0'}}>
+                  <label className="flex items-center p-3 border-2 border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors" style={{ borderColor: deleteOption === 'with-articles' ? '#3b82f6' : '#e2e8f0' }}>
                     <input
                       type="radio"
                       name="deleteOption"
@@ -1609,11 +1610,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   {recommendedSmes.map((rec, idx) => (
                     <label
                       key={rec.smeId}
-                      className={`block p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedSmeId === rec.smeId
-                          ? 'border-signal bg-blue-50'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                      className={`block p-4 border rounded-lg cursor-pointer transition-all ${selectedSmeId === rec.smeId
+                        ? 'border-signal bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300'
+                        }`}
                     >
                       <div className="flex gap-3">
                         <input
@@ -1691,11 +1691,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                 <button
                   onClick={handleAssignSme}
                   disabled={!selectedSmeId}
-                  className={`px-4 py-2 rounded text-white transition-all ${
-                    selectedSmeId
-                      ? 'bg-signal hover:bg-blue-700'
-                      : 'bg-slate-300 cursor-not-allowed'
-                  }`}
+                  className={`px-4 py-2 rounded text-white transition-all ${selectedSmeId
+                    ? 'bg-signal hover:bg-blue-700'
+                    : 'bg-slate-300 cursor-not-allowed'
+                    }`}
                 >
                   ✓ Approve & Assign
                 </button>

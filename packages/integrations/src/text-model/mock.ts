@@ -48,6 +48,32 @@ export class MockTextModel implements TextModelProvider {
     const title = params.brief.split('\n')[0] || 'Article Title';
     const wordCount = params.targetLength || 2000;
 
+    // Build insights section if briefing data is available
+    let insightsContent = '';
+    if (params.briefingInsights) {
+      const insights = params.briefingInsights;
+      const insightParts: string[] = [];
+
+      if (insights.positions && insights.positions.length > 0) {
+        const position = insights.positions[0];
+        insightParts.push(`**Expert Perspective:** "${position.answer}"`);
+      }
+
+      if (insights.examples && insights.examples.length > 0) {
+        const example = insights.examples[0];
+        insightParts.push(`**Real-World Example:** ${example.answer}`);
+      }
+
+      if (insights.recommendations && insights.recommendations.length > 0) {
+        const rec = insights.recommendations[0];
+        insightParts.push(`**Recommended Approach:** ${rec.answer}`);
+      }
+
+      if (insightParts.length > 0) {
+        insightsContent = `\n\n## Expert Insights\n\n${insightParts.join('\n\n')}\n`;
+      }
+    }
+
     return `# ${title}
 
 ## Introduction
@@ -63,6 +89,7 @@ The research indicates several important trends:
 2. **Secondary Pattern** — Emerging behavior among target ICP, supported by case study evidence from 3+ industry leaders.
 
 3. **Opportunity Gap** — Market segment currently underserved, representing a $2B+ TAM with limited existing solutions.
+${insightsContent}
 
 ## What This Means for Your Audience
 

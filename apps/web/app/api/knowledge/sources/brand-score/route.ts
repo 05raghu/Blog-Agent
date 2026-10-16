@@ -1,15 +1,23 @@
 // API route: POST /api/knowledge/sources/brand-score
 // Scores source against brand profile using AI analysis of crawled content
-// Uses centralized provider (OpenAI, Anthropic, or Mock)
+// Fetches brand profile from Supabase
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
-import { brandProfileStore } from '../../brand-profile/route';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { workspaceId = 'default-workspace', sourceTitle, sourceContent, fetchedContent } = body;
+    const { sourceTitle, sourceContent, fetchedContent } = body;
 
     if (!sourceTitle) {
       return NextResponse.json(
@@ -18,10 +26,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get brand profile for this workspace
-    const brandProfile = (brandProfileStore as any).get(workspaceId);
+    // Get brand profile from Supabase
+    const supabase = createServerClient();
+    const { data: brandProfile, error: profileError } = await supabase
+      .from('brand_profiles')
+      .select('*')
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
 
-    if (!brandProfile || brandProfile.approvalStatus !== 'approved') {
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('[API] Error fetching brand profile:', profileError);
+    }
+
+    if (!brandProfile || brandProfile.approval_status !== 'approved') {
       return NextResponse.json({
         alignmentScore: 0,
         alignmentReason: 'Brand profile not approved',

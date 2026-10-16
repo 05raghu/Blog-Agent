@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreTopicCandidate } from '@blog-agent/domain';
-import { topicStore } from '@/lib/topic-store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 interface EditTopicInput {
   topicId: string;
@@ -21,6 +21,14 @@ interface EditTopicInput {
 
 export async function PUT(request: NextRequest) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { topicId, strategyId, strategy, topic } = body as EditTopicInput;
 
@@ -38,47 +46,67 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get existing topics for this strategy
-    const topics = topicStore.get(strategyId) || [];
+    // Normalize strategy: API returns 'icps' but scoring expects 'targetIcps'
+    const normalizedStrategy = {
+      offerings: strategy.offerings || [],
+      targetIcps: strategy.targetIcps || strategy.icps || [],
+      geographies: strategy.geographies || [],
+      competitors: strategy.competitors || [],
+      contentMix: strategy.contentMix || {},
+    };
 
-    // Find the topic to edit
-    const topicIndex = topics.findIndex((t) => t.id === topicId);
-    if (topicIndex === -1) {
+    // Recalculate score with new data
+    const scoreResult = scoreTopicCandidate(topic, normalizedStrategy);
+
+    const supabase = createServerClient();
+    const { data: updated, error } = await supabase
+      .from('topic_candidates')
+      .update({
+        title: topic.title,
+        summary: topic.summary || '',
+        angle: topic.angle,
+        target_offering: topic.targetOffering,
+        geography: topic.geography,
+        audience: topic.audience,
+        format: topic.format || 'blog',
+        score: scoreResult.score,
+        confidence: scoreResult.confidence,
+        breakdown: scoreResult.breakdown,
+        cannibalization_risk: scoreResult.cannibalizationRisk,
+        recommended_smes: scoreResult.recommendedSmes,
+        missing_inputs: scoreResult.missingInputs,
+      })
+      .eq('id', topicId)
+      .eq('workspace_id', workspace.workspaceId)
+      .select()
+      .single();
+
+    if (error || !updated) {
+      console.error('[API] Topic edit error:', error);
       return NextResponse.json(
-        { error: 'Topic not found' },
-        { status: 404 }
+        { error: 'Failed to edit topic' },
+        { status: 400 }
       );
     }
 
-    // Recalculate score with new data
-    const scoreResult = scoreTopicCandidate(topic, strategy);
-
-    // Update the topic
-    const updatedTopic = {
-      ...topics[topicIndex],
-      title: topic.title,
-      summary: topic.summary || '',
-      angle: topic.angle,
-      targetOffering: topic.targetOffering,
-      geography: topic.geography,
-      audience: topic.audience,
-      format: topic.format || 'blog',
-      score: scoreResult.score,
-      confidence: scoreResult.confidence,
-      breakdown: scoreResult.breakdown,
-      cannibalizationRisk: scoreResult.cannibalizationRisk,
-      recommendedSmes: scoreResult.recommendedSmes,
-      missingInputs: scoreResult.missingInputs,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Update in store
-    topics[topicIndex] = updatedTopic;
-    topicStore.set(strategyId, topics);
-
     return NextResponse.json({
       success: true,
-      topic: updatedTopic,
+      topic: {
+        id: updated.id,
+        title: updated.title,
+        summary: updated.summary,
+        angle: updated.angle,
+        targetOffering: updated.target_offering,
+        format: updated.format,
+        geography: updated.geography,
+        audience: updated.audience,
+        score: updated.score,
+        confidence: updated.confidence,
+        breakdown: updated.breakdown,
+        cannibalizationRisk: updated.cannibalization_risk,
+        recommendedSmes: updated.recommended_smes,
+        missingInputs: updated.missing_inputs,
+      },
       message: 'Topic updated and scored successfully',
     });
   } catch (error) {

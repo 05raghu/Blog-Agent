@@ -25,6 +25,15 @@ export interface OutlineParams {
   targetAudience?: string;
 }
 
+export interface BriefingInsights {
+  positions: Array<{ question: string; answer: string; confidence: 'high' | 'medium' | 'low' }>;
+  examples: Array<{ question: string; answer: string; type: 'case_study' | 'scenario' | 'real_world' }>;
+  caveats: Array<{ question: string; answer: string }>;
+  recommendations: Array<{ question: string; answer: string }>;
+  quotable: Array<{ question: string; answer: string; quotability: 'high' | 'medium' | 'low' }>;
+  gaps: string[];
+}
+
 export interface DraftParams {
   title: string;
   brief: string;
@@ -32,6 +41,7 @@ export interface DraftParams {
   voiceProfile?: string;
   targetAudience?: string;
   targetLength?: number;
+  briefingInsights?: BriefingInsights;
 }
 
 export interface Critique {

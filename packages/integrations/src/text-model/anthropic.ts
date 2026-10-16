@@ -78,16 +78,48 @@ Format the response as a markdown outline that can be used to write the article.
 
   async generateDraft(params: DraftParams): Promise<string> {
     const systemPrompt = `You are an expert content strategist and writer for B2B technology companies.
-Your task is to generate compelling, evidence-backed blog articles.
+Your task is to generate compelling, evidence-backed blog articles grounded in real expertise.
 
 ${params.voiceProfile ? `Brand Voice Guidelines:\n${params.voiceProfile}\n` : ''}
 
 Requirements:
 - Write for a professional, decision-maker audience
-- Use specific data points and real-world examples
+- Use specific data points and real-world examples from the SME insights when provided
 - Avoid marketing clichés and false certainty
 - Include actionable insights and next steps
+- Ground positions and recommendations in the SME's expertise
 - Target length: ${params.targetLength || 2000} words`;
+
+    // Format SME insights for the prompt
+    let insightsSection = '';
+    if (params.briefingInsights) {
+      const insights = params.briefingInsights;
+      const sections: string[] = [];
+
+      if (insights.positions && insights.positions.length > 0) {
+        sections.push(`SME Positions (use to strengthen opening/thesis):\n${insights.positions.map(p => `- ${p.answer}`).join('\n')}`);
+      }
+
+      if (insights.examples && insights.examples.length > 0) {
+        sections.push(`Real-World Examples (weave into body sections):\n${insights.examples.map(e => `- ${e.answer}`).join('\n')}`);
+      }
+
+      if (insights.recommendations && insights.recommendations.length > 0) {
+        sections.push(`SME Recommendations (emphasize in actionable sections):\n${insights.recommendations.map(r => `- ${r.answer}`).join('\n')}`);
+      }
+
+      if (insights.caveats && insights.caveats.length > 0) {
+        sections.push(`Important Caveats (include for balance and credibility):\n${insights.caveats.map(c => `- ${c.answer}`).join('\n')}`);
+      }
+
+      if (insights.quotable && insights.quotable.length > 0) {
+        sections.push(`Quotable Insights (consider direct attribution):\n${insights.quotable.filter(q => q.quotability === 'high').map(q => `- "${q.answer}"`).join('\n')}`);
+      }
+
+      if (sections.length > 0) {
+        insightsSection = `\nSME BRIEFING INSIGHTS:\n${sections.join('\n\n')}\n`;
+      }
+    }
 
     const userPrompt = `Generate a blog article based on this brief and outline:
 
@@ -96,8 +128,8 @@ ${params.brief}
 
 OUTLINE:
 ${params.outline}
-
-Write a complete, publish-ready draft article.`;
+${insightsSection}
+Write a complete, publish-ready draft article that weaves the SME insights naturally throughout to add credibility and specificity.`;
 
     const message = await this.client.messages.create({
       model: this.model,

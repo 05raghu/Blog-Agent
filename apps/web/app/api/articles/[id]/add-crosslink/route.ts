@@ -1,8 +1,19 @@
+// API route: POST /api/articles/[id]/add-crosslink — Add internal link to article
+// Fetches from Supabase
+
 import { NextRequest, NextResponse } from 'next/server';
-import { articleStore } from '../../store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { targetArticleId, targetTitle, anchorText } = body;
 
@@ -13,14 +24,29 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    const article = articleStore.get(params.id);
-    if (!article) {
+    const supabase = createServerClient();
+
+    // Fetch current article
+    const { data: article, error: articleError } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('id', params.id)
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
+
+    if (articleError || !article) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
 
     // Verify target article exists
-    const targetArticle = articleStore.get(targetArticleId);
-    if (!targetArticle) {
+    const { data: targetArticle, error: targetError } = await supabase
+      .from('articles')
+      .select('id')
+      .eq('id', targetArticleId)
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
+
+    if (targetError || !targetArticle) {
       return NextResponse.json({ error: 'Target article not found' }, { status: 404 });
     }
 
@@ -65,14 +91,23 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       content = content ? `${content}\n\n**Related:** ${link}` : link;
     }
 
-    // Update article
-    const updated = {
-      ...article,
-      content,
-      updatedAt: new Date(),
-    };
+    // Update article in Supabase
+    const { error: updateError } = await supabase
+      .from('articles')
+      .update({
+        content,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .eq('workspace_id', workspace.workspaceId);
 
-    articleStore.set(params.id, updated);
+    if (updateError) {
+      console.error('[API] Add crosslink error:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to add link' },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

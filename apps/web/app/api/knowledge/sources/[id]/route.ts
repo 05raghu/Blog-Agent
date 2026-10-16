@@ -1,54 +1,57 @@
 // API route: GET/PATCH/DELETE /api/knowledge/sources/[id]
-// Retrieve, update, or delete a source
-// Uses database with fallback to in-memory store for development
+// Retrieve, update, or delete a source from Supabase
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sourceStore } from '../../store';
-
-// Try to load database client; it will be null if DATABASE_URL not set
-let sourceRepository: any = null;
-try {
-  if (process.env.DATABASE_URL) {
-    const dbModule = require('@blog-agent/db');
-    sourceRepository = dbModule.sourceRepository;
-  }
-} catch (e) {
-  console.warn('[API] Database not available, using in-memory store');
-}
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const sourceId = params.id;
-    const strategyId = request.nextUrl.searchParams.get('strategyId');
 
-    if (!strategyId) {
-      return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
-    }
+    const supabase = createServerClient();
+    const { data: source, error } = await supabase
+      .from('sources')
+      .select('*')
+      .eq('id', sourceId)
+      .eq('workspace_id', workspace.workspaceId)
+      .single();
 
-    let source;
-
-    if (sourceRepository) {
-      try {
-        source = await sourceRepository.getById(strategyId, sourceId);
-      } catch (dbError) {
-        console.warn('[API] Database query failed, falling back to in-memory store:', dbError);
-        source = sourceStore.get(sourceId);
-      }
-    } else {
-      source = sourceStore.get(sourceId);
-    }
-
-    if (!source) {
+    if (error || !source) {
       return NextResponse.json(
         { error: 'Source not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(source);
+    return NextResponse.json({
+      id: source.id,
+      type: source.type,
+      title: source.title,
+      canonicalUrl: source.canonical_url,
+      author: source.author,
+      description: source.description,
+      transcriptText: source.transcript_text,
+      sensitivityLevel: source.sensitivity_level,
+      citationPermission: source.citation_permission,
+      trustTier: source.trust_tier,
+      brandAlignmentScore: source.brand_alignment_score,
+      brandAlignmentLevel: source.brand_alignment_level,
+      brandMatchedRules: source.brand_matched_rules,
+      brandViolatedRules: source.brand_violated_rules,
+      createdAt: source.created_at,
+      updatedAt: source.updated_at,
+    });
   } catch (error) {
     console.error('[API] Source fetch error:', error);
     return NextResponse.json(
@@ -63,43 +66,69 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
+    }
+
     const sourceId = params.id;
-    const strategyId = request.nextUrl.searchParams.get('strategyId');
+    const body = await request.json();
 
-    if (!strategyId) {
-      return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
+    // Map camelCase to snake_case
+    const updateData: any = {};
+    if (body.title !== undefined) updateData.title = body.title;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.canonicalUrl !== undefined) updateData.canonical_url = body.canonicalUrl;
+    if (body.author !== undefined) updateData.author = body.author;
+    if (body.sensitivityLevel !== undefined) updateData.sensitivity_level = body.sensitivityLevel;
+    if (body.citationPermission !== undefined) updateData.citation_permission = body.citationPermission;
+    if (body.trustTier !== undefined) updateData.trust_tier = body.trustTier;
+    if (body.transcriptText !== undefined) updateData.transcript_text = body.transcriptText;
+    if (body.brandAlignmentScore !== undefined) updateData.brand_alignment_score = body.brandAlignmentScore;
+    if (body.brandAlignmentLevel !== undefined) updateData.brand_alignment_level = body.brandAlignmentLevel;
+    if (body.brandMatchedRules !== undefined) updateData.brand_matched_rules = body.brandMatchedRules;
+    if (body.brandViolatedRules !== undefined) updateData.brand_violated_rules = body.brandViolatedRules;
+
+    updateData.updated_at = new Date().toISOString();
+
+    const supabase = createServerClient();
+    const { data: updated, error } = await supabase
+      .from('sources')
+      .update(updateData)
+      .eq('id', sourceId)
+      .eq('workspace_id', workspace.workspaceId)
+      .select()
+      .single();
+
+    if (error || !updated) {
+      console.error('[API] Source update error:', error);
+      return NextResponse.json(
+        { error: 'Failed to update source' },
+        { status: 400 }
+      );
     }
 
-    const updates = await request.json();
-
-    let updated;
-
-    if (sourceRepository) {
-      try {
-        updated = await sourceRepository.update(strategyId, sourceId, updates);
-      } catch (dbError) {
-        console.warn('[API] Database update failed, falling back to in-memory store:', dbError);
-        const existing = sourceStore.get(sourceId) || { id: sourceId };
-        updated = {
-          ...existing,
-          ...updates,
-          id: sourceId,
-          updatedAt: new Date(),
-        };
-        sourceStore.set(sourceId, updated);
-      }
-    } else {
-      const existing = sourceStore.get(sourceId) || { id: sourceId };
-      updated = {
-        ...existing,
-        ...updates,
-        id: sourceId,
-        updatedAt: new Date(),
-      };
-      sourceStore.set(sourceId, updated);
-    }
-
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      id: updated.id,
+      type: updated.type,
+      title: updated.title,
+      canonicalUrl: updated.canonical_url,
+      author: updated.author,
+      description: updated.description,
+      transcriptText: updated.transcript_text,
+      sensitivityLevel: updated.sensitivity_level,
+      citationPermission: updated.citation_permission,
+      trustTier: updated.trust_tier,
+      brandAlignmentScore: updated.brand_alignment_score,
+      brandAlignmentLevel: updated.brand_alignment_level,
+      brandMatchedRules: updated.brand_matched_rules,
+      brandViolatedRules: updated.brand_violated_rules,
+      createdAt: updated.created_at,
+      updatedAt: updated.updated_at,
+    });
   } catch (error) {
     console.error('[API] Source update error:', error);
     return NextResponse.json(
@@ -114,22 +143,29 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const sourceId = params.id;
-    const strategyId = request.nextUrl.searchParams.get('strategyId');
-
-    if (!strategyId) {
-      return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
     }
 
-    if (sourceRepository) {
-      try {
-        await sourceRepository.delete(strategyId, sourceId);
-      } catch (dbError) {
-        console.warn('[API] Database delete failed, falling back to in-memory store:', dbError);
-        sourceStore.delete(sourceId);
-      }
-    } else {
-      sourceStore.delete(sourceId);
+    const sourceId = params.id;
+
+    const supabase = createServerClient();
+    const { error } = await supabase
+      .from('sources')
+      .delete()
+      .eq('id', sourceId)
+      .eq('workspace_id', workspace.workspaceId);
+
+    if (error) {
+      console.error('[API] Source delete error:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete source' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(

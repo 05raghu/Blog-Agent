@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/lib/workspace-context';
+import { apiCall } from '@/lib/api-client';
 
 export default function CreateStrategyPage() {
   const router = useRouter();
@@ -46,9 +47,8 @@ export default function CreateStrategyPage() {
     setStep('generating');
 
     try {
-      const response = await fetch('/api/strategy', {
+      const response = await apiCall('/api/strategy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title || 'My Strategy',
           offerings: offerings.split(',').map((s) => s.trim()).filter(Boolean),
@@ -105,9 +105,17 @@ export default function CreateStrategyPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="text-hero mb-4" style={{ fontSize: '46px' }}>
-            Create Editorial Strategy
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-hero" style={{ fontSize: '46px' }}>
+              Create Editorial Strategy
+            </h1>
+            <button
+              onClick={() => router.push('/strategy')}
+              className="btn-secondary"
+            >
+              ← Back to Strategies
+            </button>
+          </div>
           <p className="lead text-slate-700">
             Define your content strategy and generate high-scoring topic candidates
           </p>
@@ -239,13 +247,10 @@ export default function CreateStrategyPage() {
               />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex justify-center">
               <button type="submit" className="btn-primary">
                 Save Strategy & Generate Topics
               </button>
-              <Link href="/strategy" className="btn-secondary">
-                Back to Strategies
-              </Link>
             </div>
           </form>
         )}

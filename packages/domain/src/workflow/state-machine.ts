@@ -41,9 +41,10 @@ export function validateTransition(from: ArticleStage, to: ArticleStage): {
   error?: string;
 } {
   if (!canTransition(from, to)) {
+    const validTransitions = TRANSITIONS[from];
     return {
       valid: false,
-      error: `Cannot transition from ${from} to ${to}. Valid transitions: ${TRANSITIONS[from].join(', ')}`,
+      error: `Cannot transition from ${from} to ${to}. Valid transitions: ${validTransitions ? validTransitions.join(', ') : 'none'}`,
     };
   }
   return { valid: true };

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
 import { createServerClient } from '@/lib/workspace-auth';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'blog-agent-dev-secret-key-change-in-production';
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,12 +61,23 @@ export async function POST(request: NextRequest) {
       { expiresIn: '30d' }
     );
 
-    return NextResponse.json({
+    // Create response and set cookie
+    const response = NextResponse.json({
       success: true,
       token,
       user: { id: user.id, email: user.email },
       workspace: membership ? { id: membership.workspace_id } : null,
     });
+
+    // Set HTTP-only cookie so browser automatically sends token with requests
+    response.cookies.set('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+
+    return response;
   } catch (error) {
     console.error('[Auth] Login error:', error);
     return NextResponse.json(

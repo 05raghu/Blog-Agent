@@ -1,17 +1,31 @@
 // API route: DELETE /api/knowledge/claims/[id]
 
 import { NextRequest, NextResponse } from 'next/server';
-import { claimStore } from '../../store';
+import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params;
-
-    if (!claimStore.has(id)) {
-      return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+    const workspace = await getWorkspaceContext(request);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No valid authentication token' },
+        { status: 401 }
+      );
     }
 
-    claimStore.delete(id);
+    const { id } = params;
+
+    const supabase = createServerClient();
+    const { error } = await supabase
+      .from('claims')
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', workspace.workspaceId);
+
+    if (error) {
+      console.error('[API] Claim delete error:', error);
+      return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
+    }
 
     console.log(`[API] Deleted claim ${id}`);
 

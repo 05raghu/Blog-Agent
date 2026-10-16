@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { createServerClient } from '@/lib/workspace-auth';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'blog-agent-dev-secret-key-change-in-production';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, workspaceName, workspaceSlug } = body;
+    const { email, password, workspaceName, workspaceSlug, role = 'admin' } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -84,13 +84,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Create membership
+      // Create membership with provided role
       const { error: memError } = await supabase
         .from('memberships')
         .insert({
           workspace_id: workspaceId,
           user_id: userId,
-          role: 'admin',
+          role,
         });
 
       if (memError) {
@@ -102,19 +102,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate JWT token
+    // Generate JWT token with role
+    const userRole = workspaceId ? role : 'marketer';
     const token = jwt.sign(
-      { userId, email, workspaceId },
+      { userId, email, workspaceId, role: userRole },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
 
-    return NextResponse.json({
+    // Create response and set cookie
+    const response = NextResponse.json({
       success: true,
       token,
       user: { id: userId, email },
       workspace: workspaceId ? { id: workspaceId, name: workspaceName } : null,
     });
+
+    // Set HTTP-only cookie so browser automatically sends token with requests
+    response.cookies.set('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+
+    return response;
   } catch (error) {
     console.error('[Auth] Signup error:', error);
     return NextResponse.json(

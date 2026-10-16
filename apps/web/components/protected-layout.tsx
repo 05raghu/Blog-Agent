@@ -29,12 +29,7 @@ export default function ProtectedLayout({
     if (!user && !isPublicRoute) {
       console.log('[ProtectedLayout] Redirecting to login:', pathname);
       router.push('/auth/login');
-    }
-
-    // If user IS authenticated and on a public route, redirect to overview
-    if (user && isPublicRoute) {
-      console.log('[ProtectedLayout] User already authenticated, redirecting to overview');
-      router.push('/overview');
+      return;
     }
   }, [user, loading, isPublicRoute, pathname, router]);
 

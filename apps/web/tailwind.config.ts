@@ -51,6 +51,7 @@ const config: Config = {
         'collapse': 'collapse 640ms cubic-bezier(0.4, 0, 0.2, 1)',
         'entangle': 'entangle 960ms cubic-bezier(0.4, 0, 0.2, 1)',
         'interfere': 'interfere 640ms cubic-bezier(0.4, 0, 0.2, 1)',
+        'fade-in': 'fadeIn 300ms ease-in-out',
       },
       keyframes: {
         collapse: {
@@ -65,6 +66,10 @@ const config: Config = {
         interfere: {
           '0%': { opacity: '0', clipPath: 'inset(0 100% 0 0)' },
           '100%': { opacity: '1', clipPath: 'inset(0)' },
+        },
+        fadeIn: {
+          'from': { opacity: '0', transform: 'translateY(-10px)' },
+          'to': { opacity: '1', transform: 'translateY(0)' },
         },
       },
       boxShadow: {

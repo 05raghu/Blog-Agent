@@ -48,9 +48,8 @@ export default function LoginPage() {
       localStorage.setItem('authToken', data.token);
 
       setSuccess('Login successful! Redirecting...');
-      setTimeout(() => {
-        router.push('/overview');
-      }, 1000);
+      // Redirect immediately
+      router.push('/overview');
     } catch (err) {
       setError((err as Error).message || 'An error occurred');
     } finally {
@@ -141,11 +140,6 @@ export default function LoginPage() {
               Sign up
             </Link>
           </p>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 text-center text-xs text-slate-500">
-          <p>Blog Agent v1.0 • Custom Auth</p>
         </div>
       </div>
     </div>

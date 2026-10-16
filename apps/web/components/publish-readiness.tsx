@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface ScoreBreakdown {
   seo: { score: number; details: string[] };
   content: { score: number; details: string[] };
@@ -27,7 +29,43 @@ export function PublishReadiness({
   claimsVerified,
   totalClaims,
   hasCTA = false,
+  isSubmitting = false,
+  onSubmitForReview,
 }: PublishReadinessProps) {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const handleSubmitClick = async () => {
+    try {
+      console.log('[PublishReadiness] Submitting for review...');
+      const articleId = window.location.pathname.split('/')[2]; // Extract article ID from URL
+      const response = await fetch(`/api/articles/${articleId}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'submit' }),
+      });
+
+      console.log('[PublishReadiness] Response status:', response.status);
+      const data = await response.json();
+      console.log('[PublishReadiness] Response data:', data);
+
+      if (response.ok) {
+        console.log('[PublishReadiness] Setting success toast...');
+        setToast({ message: '✅ Article submitted for review!', type: 'success' });
+        setTimeout(() => {
+          setToast(null);
+          onSubmitForReview?.();
+        }, 2000);
+      } else {
+        setToast({ message: '❌ Failed to submit article', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (err) {
+      console.error('[PublishReadiness] Error:', err);
+      setToast({ message: '❌ Error submitting article', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   const calculateScores = (): ScoreBreakdown => {
     const scores: ScoreBreakdown = {
       seo: { score: 0, details: [] },
@@ -192,6 +230,18 @@ export function PublishReadiness({
 
   return (
     <div className="space-y-4">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 px-6 py-4 rounded-lg text-sm font-medium text-white z-50 shadow-lg animate-fade-in ${
+            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}
+          style={{ minWidth: '300px' }}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Overall Score */}
       <div className={`border border-slate-200 rounded-lg p-6 ${getScoreColor(overallScore)}`}>
         <div className="flex items-center justify-between">
@@ -265,6 +315,23 @@ export function PublishReadiness({
           </div>
         )}
       </div>
+
+      {/* Submit for Review Button */}
+      {canPublish && (
+        <button
+          onClick={handleSubmitClick}
+          disabled={isSubmitting}
+          className="w-full btn-primary disabled:opacity-50 py-3 text-base font-semibold"
+        >
+          {isSubmitting ? '⏳ Submitting for Review...' : '→ Submit for Review'}
+        </button>
+      )}
+
+      {!canPublish && (
+        <div className="w-full px-4 py-3 bg-slate-100 text-slate-600 rounded-lg text-center text-sm font-medium cursor-not-allowed opacity-50">
+          Complete all checks to submit for review
+        </div>
+      )}
     </div>
   );
 }

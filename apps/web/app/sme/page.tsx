@@ -262,7 +262,7 @@ function SMEContent() {
                 });
                 setError('');
               }}
-              className="btn-secondary text-sm"
+              className="btn-primary text-sm"
             >
               {showForm ? '✕ Cancel' : '+ New SME'}
             </button>
