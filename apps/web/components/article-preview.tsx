@@ -17,7 +17,54 @@ export function ArticlePreview({
   content,
   selectedImage,
 }: ArticlePreviewProps) {
-  // Convert markdown to HTML
+  // Render bare URLs as clickable links (same as content tab preview)
+  const renderLinksAndText = (text: string): (string | JSX.Element)[] => {
+    const parts: (string | JSX.Element)[] = [];
+    let lastIndex = 0;
+
+    // Match bare URLs: https://... or http://...
+    const urlRegex = /https?:\/\/[^\s)]+/g;
+    let urlMatch;
+
+    while ((urlMatch = urlRegex.exec(text)) !== null) {
+      // Add text before URL
+      if (urlMatch.index > lastIndex) {
+        parts.push(text.substring(lastIndex, urlMatch.index));
+      }
+
+      let finalUrl = urlMatch[0].trim();
+
+      // Remove trailing punctuation if present
+      finalUrl = finalUrl.replace(/[.,;:!?)]+$/, '');
+
+      parts.push(
+        <a
+          key={`url-${urlMatch.index}`}
+          href={finalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-signal hover:text-signal-hover underline cursor-pointer"
+          onClick={(e) => {
+            e.preventDefault();
+            window.open(finalUrl, '_blank');
+          }}
+        >
+          {finalUrl.length > 60 ? finalUrl.substring(0, 57) + '...' : finalUrl}
+        </a>
+      );
+
+      lastIndex = urlRegex.lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : [text];
+  };
+
+  // Convert markdown to HTML with proper link handling
   const markdownToHtml = (markdown: string): string => {
     let html = markdown;
 
@@ -68,26 +115,29 @@ export function ArticlePreview({
       return match;
     });
 
-    // Convert links [text](url) - must be done BEFORE paragraph wrapping to ensure proper matching
-    // Handle standard markdown links [text](url)
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-      // Trim the URL and ensure it's properly formatted
-      const cleanUrl = url.trim();
-      // Only convert if it looks like a URL (has http/https or is a relative path)
-      if (cleanUrl && (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') || cleanUrl.startsWith('/'))) {
-        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">${text}</a>`;
-      }
-      return match; // Return original if not a valid URL
+    // Replace bare URLs with placeholder to preserve them
+    const urlRegex = /https?:\/\/[^\s)]+/g;
+    const urls: string[] = [];
+    let urlIndex = 0;
+    html = html.replace(urlRegex, (match) => {
+      urls.push(match.trim().replace(/[.,;:!?)]+$/, ''));
+      return `__URL_PLACEHOLDER_${urlIndex++}__`;
     });
 
     // Convert line breaks to paragraphs
     const paragraphs = html.split('\n\n').filter(p => p.trim());
     html = paragraphs.map(p => {
-      if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<a')) {
+      if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol')) {
         return p;
       }
       return `<p>${p}</p>`;
     }).join('\n');
+
+    // Restore URLs as HTML links
+    urls.forEach((url, idx) => {
+      const placeholder = `__URL_PLACEHOLDER_${idx}__`;
+      html = html.replace(placeholder, `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">${url.length > 60 ? url.substring(0, 57) + '...' : url}</a>`);
+    });
 
     return html;
   };
