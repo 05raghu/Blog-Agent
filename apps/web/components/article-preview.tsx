@@ -108,8 +108,18 @@ export function ArticlePreview({
           </h1>
 
           {/* Article Body */}
+          <style>{`
+            .article-preview-content h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 1rem; }
+            .article-preview-content h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1.25rem; margin-bottom: 0.75rem; }
+            .article-preview-content h3 { font-size: 1.1rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+            .article-preview-content a { color: #0891b2; text-decoration: none; cursor: pointer; }
+            .article-preview-content a:hover { text-decoration: underline; }
+            .article-preview-content p { margin-bottom: 0.75rem; }
+            .article-preview-content ul, .article-preview-content ol { margin: 1rem 0; padding-left: 1.5rem; }
+            .article-preview-content li { margin-bottom: 0.25rem; }
+          `}</style>
           <div
-            className="text-slate-700 leading-relaxed"
+            className="text-slate-700 leading-relaxed article-preview-content"
             dangerouslySetInnerHTML={{
               __html: htmlContent,
             }}
@@ -131,18 +141,7 @@ export function ArticlePreview({
               '--tw-prose-pre-bg': '#1F2937',
               '--tw-prose-pre-code': '#E5E7EB',
             } as React.CSSProperties}
-          >
-            <style>{`
-              h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 1rem; }
-              h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1.25rem; margin-bottom: 0.75rem; }
-              h3 { font-size: 1.1rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
-              a { color: #0891b2; text-decoration: none; cursor: pointer; }
-              a:hover { text-decoration: underline; }
-              p { margin-bottom: 0.75rem; }
-              ul, ol { margin: 1rem 0; padding-left: 1.5rem; }
-              li { margin-bottom: 0.25rem; }
-            `}</style>
-          </div>
+          />
         </div>
       </div>
 
