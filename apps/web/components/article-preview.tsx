@@ -36,6 +36,9 @@ export function ArticlePreview({
     html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
 
+    // Convert links [text](url) - must be done before bold/italic
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">$1</a>');
+
     // Convert bold
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
@@ -88,11 +91,11 @@ export function ArticlePreview({
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
         {/* Featured Image */}
         {selectedImage && (
-          <div className="w-full h-96 bg-slate-100 rounded-t-lg overflow-hidden flex items-center justify-center">
+          <div className="w-full bg-slate-100 rounded-t-lg overflow-hidden flex items-center justify-center p-4">
             <img
               src={selectedImage.url}
               alt={selectedImage.alt}
-              className="w-full h-full object-cover"
+              className="max-w-full h-auto object-contain"
             />
           </div>
         )}
@@ -100,7 +103,7 @@ export function ArticlePreview({
         {/* Article Content */}
         <div className="p-8 lg:p-12 prose prose-sm max-w-none">
           {/* Title */}
-          <h1 className="text-4xl font-bold text-slate-900 mb-6 mt-0">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6 mt-0">
             {title}
           </h1>
 
@@ -128,7 +131,18 @@ export function ArticlePreview({
               '--tw-prose-pre-bg': '#1F2937',
               '--tw-prose-pre-code': '#E5E7EB',
             } as React.CSSProperties}
-          />
+          >
+            <style>{`
+              h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 1rem; }
+              h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1.25rem; margin-bottom: 0.75rem; }
+              h3 { font-size: 1.1rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+              a { color: #0891b2; text-decoration: none; cursor: pointer; }
+              a:hover { text-decoration: underline; }
+              p { margin-bottom: 0.75rem; }
+              ul, ol { margin: 1rem 0; padding-left: 1.5rem; }
+              li { margin-bottom: 0.25rem; }
+            `}</style>
+          </div>
         </div>
       </div>
 
