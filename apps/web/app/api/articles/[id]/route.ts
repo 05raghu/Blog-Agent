@@ -66,6 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       selectedCTA: article.selected_cta || null,
       generatedCTAs: article.generated_ctas || null,
       selectedImage: article.selected_image || null,
+      generatedImages: article.generated_images || [],
       wordCount: article.word_count,
       pausedReason: article.paused_reason,
       blockedReason: article.blocked_reason,
@@ -126,6 +127,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (body.selectedCTA !== undefined) updateData.selected_cta = body.selectedCTA;
     if (body.generatedCTAs !== undefined) updateData.generated_ctas = body.generatedCTAs;
     if (body.selectedImage !== undefined) updateData.selected_image = body.selectedImage;
+    if (body.generatedImages !== undefined) updateData.generated_images = body.generatedImages;
     if (body.pausedReason !== undefined) updateData.paused_reason = body.pausedReason;
     if (body.blockedReason !== undefined) updateData.blocked_reason = body.blockedReason;
 
@@ -177,6 +179,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       selectedCTA: updated.selected_cta || null,
       generatedCTAs: updated.generated_ctas || null,
       selectedImage: updated.selected_image || null,
+      generatedImages: updated.generated_images || [],
       wordCount: updated.word_count,
       pausedReason: updated.paused_reason,
       blockedReason: updated.blocked_reason,
