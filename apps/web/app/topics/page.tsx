@@ -1130,7 +1130,7 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     Generating topics...
                   </>
                 ) : (
-                  '✨ Generate 10 Topics'
+                  '✨ Generate Topics'
                 )}
               </button>
             </div>

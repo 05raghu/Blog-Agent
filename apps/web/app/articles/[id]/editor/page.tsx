@@ -14,6 +14,7 @@ import { CTAGenerator } from '@/components/cta-generator';
 import { ImageGallery } from '@/components/image-gallery';
 import { BriefingInsightsPanel } from '@/components/briefing-insights-panel';
 import { ArticleFeedback } from '@/components/article-feedback';
+import { ArticlePreview } from '@/components/article-preview';
 import { validateTransition, type ArticleStage, STAGE_COLORS, STAGE_LABELS } from '@blog-agent/domain';
 import type { BriefingInsights } from '@/lib/briefing-insights';
 
@@ -104,7 +105,7 @@ export default function ArticleEditorPage() {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'score' | 'workflow' | 'feedback' | 'sources'>('brief');
+  const [activeTab, setActiveTab] = useState<'brief' | 'outline' | 'content' | 'seo' | 'crosslinks' | 'cta' | 'images' | 'sources' | 'preview' | 'score' | 'feedback' | 'workflow'>('brief');
 
   // Feedback state
   const [comments, setComments] = useState<any[]>([]);
@@ -773,6 +774,7 @@ export default function ArticleEditorPage() {
       case 'seo':
       case 'crosslinks':
       case 'cta':
+      case 'preview':
       case 'score':
         return hasContent;
       case 'images':
@@ -852,7 +854,7 @@ export default function ArticleEditorPage() {
             {/* Tabs */}
             <div className="bg-white border border-slate-200 rounded-lg">
               <div className="flex border-b border-slate-200 overflow-x-auto">
-                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'cta', 'images', 'sources', 'score', 'feedback', 'workflow'] as const).map((tab) => {
+                {(['brief', 'outline', 'content', 'seo', 'crosslinks', 'cta', 'images', 'sources', 'preview', 'score', 'feedback', 'workflow'] as const).map((tab) => {
                   const enabled = isTabEnabled(tab);
                   return (
                   <button
@@ -875,10 +877,11 @@ export default function ArticleEditorPage() {
                     {tab === 'crosslinks' && '🔗 Links'}
                     {tab === 'cta' && '📣 CTA'}
                     {tab === 'images' && '🖼️ Images'}
+                    {tab === 'sources' && '📚 Sources'}
+                    {tab === 'preview' && '👁️ Preview'}
                     {tab === 'score' && '✓ Publish-Ready'}
                     {tab === 'workflow' && '🔄 Workflow'}
                     {tab === 'feedback' && '💬 Feedback'}
-                    {tab === 'sources' && '📚 Sources'}
                   </button>
                   );
                 })}
@@ -1029,6 +1032,14 @@ export default function ArticleEditorPage() {
                     isLoading={imagesLoading}
                     images={images}
                     selectedImage={selectedImage}
+                  />
+                )}
+
+                {activeTab === 'preview' && (
+                  <ArticlePreview
+                    title={article.title}
+                    content={content}
+                    selectedImage={selectedImage || undefined}
                   />
                 )}
 
