@@ -3,7 +3,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
-import { scoreAndBuildTopic } from '@/lib/topic-store';
+import { getTopicScorerProvider } from '@/lib/topic-scorer';
+import { getSearchDemandProvider } from '@/lib/search-demand';
+import { generateTopicId } from '@/lib/topic-store';
 import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
 export async function POST(request: NextRequest) {
@@ -55,10 +57,91 @@ export async function POST(request: NextRequest) {
       count: 10,
     });
 
-    // Score each candidate
-    const scored = rawCandidates.map((c) => {
-      return scoreAndBuildTopic(c, strategy);
-    });
+    // Score each candidate with LLM + GA4 data
+    const scorer = await getTopicScorerProvider();
+    const scored = [];
+
+    for (const candidate of rawCandidates) {
+      const topicId = generateTopicId();
+
+      try {
+        // Get GA4 demand data
+        let searchDemand = null;
+        try {
+          const demandProvider = await getSearchDemandProvider();
+          const demandData = await demandProvider.getSearchDemand({
+            topic: candidate.title,
+            keywords: candidate.angle ? [candidate.angle] : [],
+          });
+          searchDemand = {
+            estimatedMonthlySearches: demandData.estimatedMonthlySearches,
+            demandLevel: demandData.demandLevel,
+            resultCount: demandData.gscImpressions,
+            trending: demandData.trending,
+            confidence: demandData.confidence,
+          };
+        } catch (demandErr) {
+          console.warn('[Generate] GA4 error for topic:', candidate.title, demandErr);
+        }
+
+        // Score with LLM
+        const llmScore = await scorer.scoreTopic({
+          topic: candidate,
+          strategy,
+          searchDemand: searchDemand || undefined,
+        });
+
+        scored.push({
+          id: topicId,
+          title: candidate.title,
+          summary: candidate.summary || '',
+          format: candidate.format || 'blog',
+          angle: candidate.angle,
+          targetOffering: candidate.targetOffering,
+          geography: candidate.geography,
+          audience: candidate.audience,
+          score: llmScore.totalScore,
+          confidence: llmScore.confidence,
+          breakdown: {
+            strategicRelevance: {
+              score: llmScore.breakdown.strategicRelevance.score,
+              evidence: llmScore.breakdown.strategicRelevance.reasoning,
+            },
+            audienceIcpUsefulness: {
+              score: llmScore.breakdown.audienceIcpUsefulness.score,
+              evidence: llmScore.breakdown.audienceIcpUsefulness.reasoning,
+            },
+            availableEvidenceAndDemand: {
+              score: llmScore.breakdown.availableEvidenceAndDemand.score,
+              evidence: llmScore.breakdown.availableEvidenceAndDemand.reasoning,
+            },
+            differentiatedAngle: {
+              score: llmScore.breakdown.differentiatedAngle.score,
+              evidence: llmScore.breakdown.differentiatedAngle.reasoning,
+            },
+            smeFit: {
+              score: llmScore.breakdown.smeFit.score,
+              evidence: llmScore.breakdown.smeFit.reasoning,
+            },
+            searchContentGap: {
+              score: llmScore.breakdown.searchContentGap.score,
+              evidence: llmScore.breakdown.searchContentGap.reasoning,
+            },
+            conversionDistributionPotential: {
+              score: llmScore.breakdown.conversionDistributionPotential.score,
+              evidence: llmScore.breakdown.conversionDistributionPotential.reasoning,
+            },
+          },
+          cannibalizationRisk: { exists: false },
+          recommendedSmes: [],
+          missingInputs: [],
+          createdAt: new Date().toISOString(),
+        });
+      } catch (scoreErr) {
+        console.error('[Generate] Failed to score topic:', candidate.title, scoreErr);
+        throw scoreErr;
+      }
+    }
 
     // Persist all scored topics to database
     const { error: insertError } = await supabase
