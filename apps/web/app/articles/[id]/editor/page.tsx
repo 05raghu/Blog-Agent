@@ -194,19 +194,7 @@ export default function ArticleEditorPage() {
         setSelectedImage(data.selectedImage);
       }
 
-      // Load persisted generated images from localStorage if available
-      try {
-        const storedImages = localStorage.getItem(`article_images_${id}`);
-        if (storedImages) {
-          const parsedImages = JSON.parse(storedImages);
-          if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-            console.log('[DEBUG] Loading persisted generated images from localStorage:', parsedImages.length);
-            setImages(parsedImages);
-          }
-        }
-      } catch (storageErr) {
-        console.warn('[DEBUG] Failed to load images from localStorage:', storageErr);
-      }
+      // Note: Generated images are loaded from localStorage in a separate useEffect
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -394,12 +382,30 @@ export default function ArticleEditorPage() {
     }
   }, [activeTab, content, selectedCTA]);
 
+  // Load images from localStorage when article is loaded
+  useEffect(() => {
+    if (article && id) {
+      try {
+        const storedImages = localStorage.getItem(`article_images_${id}`);
+        if (storedImages) {
+          const parsedImages = JSON.parse(storedImages);
+          if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+            console.log('[Images] Loaded from localStorage:', parsedImages.length);
+            setImages(parsedImages);
+          }
+        }
+      } catch (err) {
+        console.warn('[Images] Failed to load from localStorage:', err);
+      }
+    }
+  }, [article, id]);
+
   // Auto-generate images when tab is accessed (only if no images exist and no image selected)
   useEffect(() => {
     if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
       handleGenerateImages();
     }
-  }, [activeTab, article?.title, selectedImage]);
+  }, [activeTab, article?.title, images.length, selectedImage, imagesLoading]);
 
   // Fetch comments when feedback tab is accessed
   useEffect(() => {
