@@ -382,23 +382,15 @@ export default function ArticleEditorPage() {
     }
   }, [activeTab, content, selectedCTA]);
 
-  // Load images from localStorage when article is loaded
+  // Load images from article data when article is loaded
   useEffect(() => {
-    if (article && id) {
-      try {
-        const storedImages = localStorage.getItem(`article_images_${id}`);
-        if (storedImages) {
-          const parsedImages = JSON.parse(storedImages);
-          if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-            console.log('[Images] Loaded from localStorage:', parsedImages.length);
-            setImages(parsedImages);
-          }
-        }
-      } catch (err) {
-        console.warn('[Images] Failed to load from localStorage:', err);
+    if (article && article.generatedImages && Array.isArray(article.generatedImages)) {
+      if (article.generatedImages.length > 0) {
+        console.log('[Images] Loaded from database:', article.generatedImages.length);
+        setImages(article.generatedImages);
       }
     }
-  }, [article, id]);
+  }, [article?.generatedImages]);
 
   // Auto-generate images when tab is accessed (only if no images exist and no image selected)
   useEffect(() => {
@@ -566,16 +558,26 @@ export default function ArticleEditorPage() {
       const generatedImages = data.images || [];
       setImages(generatedImages);
 
-      // Persist generated images to localStorage
+      // Save generated images to database
       if (generatedImages.length > 0) {
         try {
-          localStorage.setItem(
-            `article_images_${id}`,
-            JSON.stringify(generatedImages)
-          );
-          console.log('[Images] Saved to localStorage:', generatedImages.length);
-        } catch (storageErr) {
-          console.warn('[Images] Failed to save to localStorage:', storageErr);
+          const saveResponse = await fetch(`/api/articles/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              generatedImages: generatedImages,
+            }),
+          });
+
+          if (saveResponse.ok) {
+            console.log('[Images] Saved to database:', generatedImages.length);
+            const updatedArticle = await saveResponse.json();
+            setArticle(updatedArticle);
+          } else {
+            console.warn('[Images] Failed to save to database:', saveResponse.status);
+          }
+        } catch (saveErr) {
+          console.warn('[Images] Database save error:', saveErr);
         }
       }
     } catch (err) {
