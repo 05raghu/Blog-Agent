@@ -1,5 +1,9 @@
 // GA4 Analytics provider interface — queries Google Analytics 4 for traffic data
 
+// Export implementations
+export { GoogleAnalytics4 } from './google-analytics';
+export { MockGA4 } from './mock';
+
 export interface GA4QueryParams {
   topic: string;
   keywords?: string[];

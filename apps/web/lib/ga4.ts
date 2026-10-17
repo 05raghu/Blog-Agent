@@ -1,8 +1,6 @@
 // GA4 provider — auto-selects between real GA4 API and mock
 
-import { GoogleAnalytics4 } from '@blog-agent/integrations/ga4/google-analytics';
-import { MockGA4 } from '@blog-agent/integrations/ga4/mock';
-import type { GA4Provider } from '@blog-agent/integrations/ga4';
+import { GoogleAnalytics4, MockGA4, type GA4Provider } from '@blog-agent/integrations';
 
 let ga4Provider: GA4Provider | null = null;
 

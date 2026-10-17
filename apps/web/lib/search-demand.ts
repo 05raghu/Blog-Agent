@@ -1,8 +1,7 @@
 // Search demand provider — uses real GA4 + mock GSC (no domain yet)
 
 import { getGA4Provider } from './ga4';
-import type { SearchDemandProvider } from '@blog-agent/integrations/search-demand';
-import type { SearchDemandParams, SearchDemandResult } from '@blog-agent/integrations/search-demand';
+import type { SearchDemandProvider, SearchDemandParams, SearchDemandResult } from '@blog-agent/integrations';
 
 class GA4SearchDemand implements SearchDemandProvider {
   async getSearchDemand(params: SearchDemandParams): Promise<SearchDemandResult> {
