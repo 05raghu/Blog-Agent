@@ -2,6 +2,9 @@
 // GA4: traffic to similar existing content
 // GSC: Google search impressions & clicks for related keywords
 
+// Export implementations
+export { MockSearchDemand } from './mock';
+
 export interface SearchDemandParams {
   topic: string;
   keywords?: string[];

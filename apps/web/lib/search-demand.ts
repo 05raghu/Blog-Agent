@@ -1,6 +1,7 @@
 // Search demand provider — uses real GA4 + mock GSC (no domain yet)
 
 import { getGA4Provider } from './ga4';
+import { MockSearchDemand } from '@blog-agent/integrations';
 import type { SearchDemandProvider, SearchDemandParams, SearchDemandResult } from '@blog-agent/integrations';
 
 class GA4SearchDemand implements SearchDemandProvider {
@@ -48,7 +49,10 @@ class GA4SearchDemand implements SearchDemandProvider {
       };
     } catch (error) {
       console.error('[SearchDemand] GA4 error:', error);
-      throw new Error(`Failed to get search demand: ${(error as Error).message}`);
+      // Fall back to mock data on error instead of crashing
+      console.log('[SearchDemand] Falling back to mock due to error');
+      const mockProvider = new MockSearchDemand();
+      return mockProvider.getSearchDemand(params);
     }
   }
 }
