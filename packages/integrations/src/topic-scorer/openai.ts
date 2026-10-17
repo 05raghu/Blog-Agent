@@ -97,6 +97,8 @@ Return JSON with all 7 dimensions scored.`;
 
   private parseResponse(text: string): LLMTopicScoreResult {
     try {
+      console.log('[TopicScorer:OpenAI] Full raw response:', text.substring(0, 300));
+
       // Extract JSON from response (may have text before/after)
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -104,7 +106,10 @@ Return JSON with all 7 dimensions scored.`;
         throw new Error('No JSON found in response');
       }
 
+      console.log('[TopicScorer:OpenAI] Extracted JSON:', jsonMatch[0].substring(0, 300));
+
       const parsed = JSON.parse(jsonMatch[0]);
+      console.log('[TopicScorer:OpenAI] Parsed successfully, totalScore:', parsed.totalScore);
 
       return {
         totalScore: Math.round(parsed.totalScore),
@@ -121,7 +126,8 @@ Return JSON with all 7 dimensions scored.`;
         overallRecommendation: parsed.overallRecommendation,
       };
     } catch (error) {
-      console.error('[TopicScorer:OpenAI] Parse error:', error, 'Response:', text.substring(0, 500));
+      console.error('[TopicScorer:OpenAI] Parse error:', error);
+      console.error('[TopicScorer:OpenAI] Full response was:', text);
       throw new Error('Failed to parse topic score response');
     }
   }
