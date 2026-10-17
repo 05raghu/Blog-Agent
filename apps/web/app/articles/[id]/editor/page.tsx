@@ -397,7 +397,7 @@ export default function ArticleEditorPage() {
     if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
       handleGenerateImages();
     }
-  }, [activeTab, article?.title, images.length, selectedImage, imagesLoading]);
+  }, [activeTab, article?.title, selectedImage]);
 
   // Fetch comments when feedback tab is accessed
   useEffect(() => {
