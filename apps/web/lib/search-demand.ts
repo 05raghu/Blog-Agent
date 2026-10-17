@@ -1,6 +1,5 @@
-// Search demand provider — auto-selects between Google scrape and mock
+// Search demand provider — uses GA4 + GSC real data (mock during setup)
 
-import { GoogleSearchDemand } from '@blog-agent/integrations/search-demand/google-scrape';
 import { MockSearchDemand } from '@blog-agent/integrations/search-demand/mock';
 import type { SearchDemandProvider } from '@blog-agent/integrations/search-demand';
 
@@ -11,17 +10,10 @@ export async function getSearchDemandProvider(): Promise<SearchDemandProvider> {
     return searchDemandProvider;
   }
 
-  // For now, use mock (Google scraping may be blocked in some environments)
-  // To enable real Google scraping, set USE_GOOGLE_SCRAPE=true in .env.local
-  const useGoogleScrape = process.env.USE_GOOGLE_SCRAPE === 'true';
-
-  if (useGoogleScrape) {
-    console.log('[SearchDemand] Using Google Search scraper');
-    searchDemandProvider = new GoogleSearchDemand();
-  } else {
-    console.log('[SearchDemand] Using mock search demand provider');
-    searchDemandProvider = new MockSearchDemand();
-  }
+  // Currently using mock mode
+  // After GA4 + GSC setup, this will switch to real implementations
+  console.log('[SearchDemand] Using mock (setup GA4 + GSC for real data)');
+  searchDemandProvider = new MockSearchDemand();
 
   return searchDemandProvider;
 }

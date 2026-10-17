@@ -1,4 +1,6 @@
-// Search demand provider — crawls Google Search for topic demand signals
+// Search demand provider — uses real GA4 + GSC data to assess topic demand
+// GA4: traffic to similar existing content
+// GSC: Google search impressions & clicks for related keywords
 
 export interface SearchDemandParams {
   topic: string;
@@ -6,13 +8,14 @@ export interface SearchDemandParams {
 }
 
 export interface SearchDemandResult {
-  estimatedMonthlySearches: number; // estimated from result count + signals
-  demandLevel: 'high' | 'medium' | 'low'; // based on search signals
-  resultCount: number; // approximate Google result count
-  relatedKeywords: string[]; // top related searches
-  ranking: number | null; // your domain ranking (if found), null if not ranked
-  trending: boolean; // is this topic trending up?
-  confidence: number; // 0-100, confidence in this data
+  estimatedMonthlySearches: number; // from GSC impressions + GA4 similar content traffic
+  demandLevel: 'high' | 'medium' | 'low'; // based on real data signals
+  gscImpressions: number; // total Google search impressions for related keywords
+  gscClicks: number; // total clicks from Google search
+  gscAveragePosition: number; // average ranking position
+  ga4TrafficOnSimilar: number; // pageviews on similar existing content
+  trending: boolean; // traffic trending up?
+  confidence: number; // 0-100, confidence in this data (higher = more data available)
   signals: string[]; // explanation of how demand was calculated
 }
 

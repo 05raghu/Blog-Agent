@@ -1,4 +1,4 @@
-// Mock search demand provider for testing (deterministic, no network calls)
+// Mock search demand provider — deterministic demo data from GA4 + GSC
 
 import { SearchDemandProvider, SearchDemandParams, SearchDemandResult } from './index';
 
@@ -9,25 +9,38 @@ export class MockSearchDemand implements SearchDemandProvider {
     // Deterministic hash-based scoring
     const hash = this.simpleHash(topic);
     const demandLevel = hash % 3 === 0 ? 'high' : hash % 3 === 1 ? 'medium' : 'low';
-    const baseSearchVolume =
-      demandLevel === 'high' ? 50000 : demandLevel === 'medium' ? 5000 : 500;
-    const resultCount =
-      demandLevel === 'high' ? 5000000 : demandLevel === 'medium' ? 500000 : 50000;
 
-    const trendingKeywords = this.generateRelatedKeywords(topic);
+    // Simulate GSC data
+    const gscImpressions =
+      demandLevel === 'high' ? 50000 : demandLevel === 'medium' ? 5000 : 500;
+    const gscClicks = Math.round(gscImpressions * (0.03 + Math.random() * 0.05)); // 3-8% CTR
+    const gscAveragePosition =
+      demandLevel === 'high' ? 3 : demandLevel === 'medium' ? 8 : 15;
+
+    // Simulate GA4 data (traffic on similar articles)
+    const ga4TrafficOnSimilar =
+      demandLevel === 'high' ? 5000 : demandLevel === 'medium' ? 500 : 50;
+
+    const estimatedMonthlySearches = gscImpressions + ga4TrafficOnSimilar;
 
     return {
-      estimatedMonthlySearches: baseSearchVolume + (hash % 10000),
+      estimatedMonthlySearches,
       demandLevel,
-      resultCount,
-      relatedKeywords: trendingKeywords,
-      ranking: null,
-      trending: demandLevel !== 'low',
-      confidence: 60,
+      gscImpressions,
+      gscClicks,
+      gscAveragePosition,
+      ga4TrafficOnSimilar,
+      trending: demandLevel !== 'low' && Math.random() > 0.5,
+      confidence: 70,
       signals: [
-        `~${resultCount.toLocaleString()} search results`,
-        `Estimated ${baseSearchVolume.toLocaleString()} monthly searches`,
-        demandLevel === 'high' ? 'High demand topic' : 'Moderate interest',
+        `GSC: ${gscImpressions.toLocaleString()} impressions, ${gscClicks} clicks`,
+        `GA4: ${ga4TrafficOnSimilar.toLocaleString()} pageviews on similar content`,
+        `Avg ranking position: #${gscAveragePosition}`,
+        demandLevel === 'high'
+          ? 'Strong demand signals'
+          : demandLevel === 'medium'
+            ? 'Moderate demand'
+            : 'Low search interest',
       ],
     };
   }
@@ -37,26 +50,8 @@ export class MockSearchDemand implements SearchDemandProvider {
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash; // convert to 32bit integer
+      hash = hash & hash;
     }
     return Math.abs(hash);
-  }
-
-  private generateRelatedKeywords(topic: string): string[] {
-    const baseKeywords = topic.split(' ');
-
-    // Common modifier keywords
-    const modifiers = ['how to', 'best practices for', 'guide to', 'tutorial on', 'tips for'];
-
-    return [
-      `${modifiers[Math.floor(Math.random() * modifiers.length)]} ${topic}`,
-      `${topic} guide`,
-      `${topic} tutorial`,
-      `${topic} examples`,
-      `${baseKeywords[0]} vs ${baseKeywords[Math.min(1, baseKeywords.length - 1)]}`,
-      `advanced ${topic}`,
-      `${topic} mistakes`,
-      `${topic} trends 2026`,
-    ];
   }
 }
