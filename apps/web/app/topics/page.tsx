@@ -140,6 +140,8 @@ function TopicsContent() {
         topicsData = parsed.filter((t: Topic) => t.strategyId === strategyId);
       }
 
+      // Sort by score descending (highest to lowest)
+      topicsData.sort((a, b) => b.score - a.score);
       setTopics(topicsData);
 
       // Also try API to sync (in-memory store may have more recent data)
@@ -154,6 +156,8 @@ function TopicsContent() {
 
           // If API has data, use it and update localStorage
           if (apiTopics.length > 0) {
+            // Sort by score descending (highest to lowest)
+            apiTopics.sort((a, b) => b.score - a.score);
             setTopics(apiTopics);
             localStorage.setItem('topics', JSON.stringify(apiTopics));
           }

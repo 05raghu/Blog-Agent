@@ -30,10 +30,7 @@ export class GoogleAnalytics4 implements GA4Provider {
       const endDate = new Date();
       const startDate = new Date(endDate.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
-      // Build filters for keyword matching
-      const filters = this.buildKeywordFilters(allKeywords);
-
-      // Query GA4 for metrics
+      // Query GA4 for metrics (simpler query without keyword filtering due to API complexity)
       const response = await client.request({
         url: `https://analyticsdata.googleapis.com/v1beta/properties/${this.propertyId}:runReport`,
         method: 'POST',
@@ -52,8 +49,7 @@ export class GoogleAnalytics4 implements GA4Provider {
             { name: 'conversions' },
           ],
           dimensions: [{ name: 'pagePath' }],
-          dimensionFilter: filters,
-          limit: 100,
+          limit: 10,
         },
       });
 
@@ -65,28 +61,28 @@ export class GoogleAnalytics4 implements GA4Provider {
   }
 
   private buildKeywordFilters(keywords: string[]) {
-    // Build OR filter for any keyword in page path
+    // Build OR filter for any keyword matching
     if (keywords.length === 0) {
       return undefined;
     }
 
-    const orFilters = keywords.map((keyword) => ({
-      filter: {
-        fieldName: 'pageTitle',
-        stringFilter: {
-          matchType: 'CONTAINS',
-          value: keyword,
-        },
+    const expressions = keywords.map((keyword) => ({
+      field_name: 'pageTitle',
+      string_filter: {
+        match_type: 'CONTAINS',
+        value: keyword,
       },
     }));
 
-    if (orFilters.length === 1) {
-      return orFilters[0].filter;
+    // Single filter without OR wrapper
+    if (expressions.length === 1) {
+      return expressions[0];
     }
 
+    // Multiple filters with OR
     return {
-      orGroup: {
-        expressions: orFilters.map((f) => ({ filter: f.filter })),
+      or_group: {
+        expressions: expressions,
       },
     };
   }
