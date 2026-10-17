@@ -147,7 +147,6 @@ export async function POST(request: NextRequest) {
             score: scoredTopic.score,
             confidence: scoredTopic.confidence,
             breakdown: scoredTopic.breakdown,
-            scoring_data: scoredTopic.llmScoringData, // Store full LLM data
             cannibalization_risk: scoredTopic.cannibalizationRisk,
             recommended_smes: scoredTopic.recommendedSmes,
             missing_inputs: scoredTopic.missingInputs,
