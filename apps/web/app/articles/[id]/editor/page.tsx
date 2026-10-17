@@ -194,8 +194,19 @@ export default function ArticleEditorPage() {
         setSelectedImage(data.selectedImage);
       }
 
-      // Note: generatedImages are NOT persisted (too large as base64)
-      // Users need to regenerate them if needed by clicking "Generate Images"
+      // Load persisted generated images from localStorage if available
+      try {
+        const storedImages = localStorage.getItem(`article_images_${id}`);
+        if (storedImages) {
+          const parsedImages = JSON.parse(storedImages);
+          if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+            console.log('[DEBUG] Loading persisted generated images from localStorage:', parsedImages.length);
+            setImages(parsedImages);
+          }
+        }
+      } catch (storageErr) {
+        console.warn('[DEBUG] Failed to load images from localStorage:', storageErr);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -548,6 +559,19 @@ export default function ArticleEditorPage() {
       const data = await response.json();
       const generatedImages = data.images || [];
       setImages(generatedImages);
+
+      // Persist generated images to localStorage
+      if (generatedImages.length > 0) {
+        try {
+          localStorage.setItem(
+            `article_images_${id}`,
+            JSON.stringify(generatedImages)
+          );
+          console.log('[Images] Saved to localStorage:', generatedImages.length);
+        } catch (storageErr) {
+          console.warn('[Images] Failed to save to localStorage:', storageErr);
+        }
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
