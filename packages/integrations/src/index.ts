@@ -5,3 +5,4 @@ export * from './image-model';
 export * from './search-crawl';
 export * from './topic-scorer';
 export * from './search-demand';
+export * from './ga4';
