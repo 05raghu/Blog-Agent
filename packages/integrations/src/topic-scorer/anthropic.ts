@@ -128,12 +128,14 @@ Return ONLY valid JSON (no markdown):
     const { topic, strategy, searchDemand } = params;
 
     let demandSection = '';
-    if (searchDemand) {
+    if (searchDemand && searchDemand.estimatedMonthlySearches !== undefined) {
+      const monthlySearches = searchDemand.estimatedMonthlySearches || 0;
+      const resultCount = searchDemand.resultCount || 0;
       demandSection = `
 REAL MARKET DATA (from Google):
-Estimated Monthly Searches: ${searchDemand.estimatedMonthlySearches.toLocaleString()}
+Estimated Monthly Searches: ${monthlySearches.toLocaleString()}
 Demand Level: ${searchDemand.demandLevel}
-Search Results: ~${searchDemand.resultCount.toLocaleString()}
+Search Results: ~${resultCount.toLocaleString()}
 Trending: ${searchDemand.trending ? 'Yes' : 'No'}
 
 Use this real market data to inform your "AVAILABLE EVIDENCE & DEMAND" score.
