@@ -36,9 +36,6 @@ export function ArticlePreview({
     html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
 
-    // Convert links [text](url) - must be done before bold/italic
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">$1</a>');
-
     // Convert bold
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
@@ -71,10 +68,22 @@ export function ArticlePreview({
       return match;
     });
 
+    // Convert links [text](url) - must be done BEFORE paragraph wrapping to ensure proper matching
+    // Handle standard markdown links [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+      // Trim the URL and ensure it's properly formatted
+      const cleanUrl = url.trim();
+      // Only convert if it looks like a URL (has http/https or is a relative path)
+      if (cleanUrl && (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') || cleanUrl.startsWith('/'))) {
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">${text}</a>`;
+      }
+      return match; // Return original if not a valid URL
+    });
+
     // Convert line breaks to paragraphs
     const paragraphs = html.split('\n\n').filter(p => p.trim());
     html = paragraphs.map(p => {
-      if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol')) {
+      if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<a')) {
         return p;
       }
       return `<p>${p}</p>`;
