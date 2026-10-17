@@ -182,11 +182,15 @@ export async function POST(request: NextRequest) {
       .eq('strategy_id', strategyId)
       .eq('workspace_id', workspace.workspaceId);
 
+    // Sort by score descending (highest to lowest)
+    const sortedGenerated = scored.sort((a, b) => b.score - a.score);
+    const sortedTopics = (allTopics || []).sort((a, b) => b.score - a.score);
+
     return NextResponse.json({
       success: true,
       requested: 10,
-      generated: scored,
-      topics: allTopics || [],
+      generated: sortedGenerated,
+      topics: sortedTopics,
       strategyId,
     });
   } catch (error) {

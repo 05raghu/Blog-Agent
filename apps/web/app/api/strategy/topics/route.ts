@@ -167,10 +167,13 @@ export async function POST(request: NextRequest) {
           .eq('strategy_id', strategyId)
           .eq('workspace_id', workspace.workspaceId);
 
+        // Sort by score descending (highest to lowest)
+        const sortedTopics = (topics || []).sort((a, b) => b.score - a.score);
+
         return NextResponse.json({
           success: true,
           topic: scoredTopic,
-          topics: topics || [],
+          topics: sortedTopics,
           message: 'Topic created and auto-scored with LLM successfully',
         });
       } catch (scoreError) {
