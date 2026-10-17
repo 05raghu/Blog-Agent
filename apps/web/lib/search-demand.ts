@@ -26,20 +26,26 @@ class GA4SearchDemand implements SearchDemandProvider {
       // Assumption: ~5% of impressions convert to clicks/pageviews
       const estimatedImpressions = Math.round(metrics.totalPageviews / 0.03);
 
+      // Ensure all values are numbers
+      const totalPageviews = metrics.totalPageviews || 0;
+      const totalUsers = metrics.totalUsers || 0;
+      const bounceRate = metrics.bounceRate || 0;
+      const conversionRate = metrics.conversionRate || 0;
+
       return {
-        estimatedMonthlySearches: metrics.totalPageviews,
+        estimatedMonthlySearches: totalPageviews,
         demandLevel,
         gscImpressions: estimatedImpressions,
-        gscClicks: metrics.totalPageviews,
+        gscClicks: totalPageviews,
         gscAveragePosition: demandLevel === 'high' ? 3 : demandLevel === 'medium' ? 8 : 15,
-        ga4TrafficOnSimilar: metrics.totalPageviews,
-        trending: metrics.bounceRate < 50, // lower bounce rate = engaged = trending
+        ga4TrafficOnSimilar: totalPageviews,
+        trending: bounceRate < 50, // lower bounce rate = engaged = trending
         confidence: 85,
         signals: [
-          `GA4: ${metrics.totalPageviews.toLocaleString()} pageviews on similar content`,
-          `${metrics.totalUsers.toLocaleString()} unique users interested in this topic`,
-          `Bounce rate: ${metrics.bounceRate.toFixed(0)}%`,
-          `Conversion rate: ${metrics.conversionRate.toFixed(1)}%`,
+          `GA4: ${totalPageviews.toLocaleString()} pageviews on similar content`,
+          `${totalUsers.toLocaleString()} unique users interested in this topic`,
+          `Bounce rate: ${bounceRate.toFixed(0)}%`,
+          `Conversion rate: ${conversionRate.toFixed(1)}%`,
           demandLevel === 'high'
             ? 'Strong traffic signals'
             : demandLevel === 'medium'
