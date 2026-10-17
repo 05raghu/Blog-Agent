@@ -1,10 +1,11 @@
 // API route: /api/strategy/topics — Create and retrieve user-defined topics
-// Auto-scores using LLM (Claude, OpenAI, or Mock)
+// Auto-scores using LLM (Claude, OpenAI, or Mock) with real market demand data
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateTopicId } from '@/lib/topic-store';
 import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 import { getTopicScorerProvider } from '@/lib/topic-scorer';
+import { getSearchDemandProvider } from '@/lib/search-demand';
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,11 +48,33 @@ export async function POST(request: NextRequest) {
         // Get LLM scorer (Claude, OpenAI, or Mock)
         const scorer = await getTopicScorerProvider();
 
-        // Score the topic using LLM
+        // Get real market demand data
+        let searchDemand = null;
+        try {
+          const demandProvider = await getSearchDemandProvider();
+          const demandData = await demandProvider.getSearchDemand({
+            topic: topic.title,
+            keywords: topic.angle ? [topic.angle] : [],
+          });
+          searchDemand = {
+            estimatedMonthlySearches: demandData.estimatedMonthlySearches,
+            demandLevel: demandData.demandLevel,
+            resultCount: demandData.resultCount,
+            trending: demandData.trending,
+            confidence: demandData.confidence,
+          };
+          console.log('[API] Got search demand data:', searchDemand);
+        } catch (demandErr) {
+          console.warn('[API] Failed to get search demand:', demandErr);
+          // Continue without demand data
+        }
+
+        // Score the topic using LLM with market demand data
         console.log('[API] Auto-scoring topic with LLM:', topic.title.substring(0, 50));
         const llmScore = await scorer.scoreTopic({
           topic,
           strategy: normalizedStrategy,
+          searchDemand: searchDemand || undefined,
         });
 
         // Generate ID for topic

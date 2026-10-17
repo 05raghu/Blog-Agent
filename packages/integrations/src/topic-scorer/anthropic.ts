@@ -69,11 +69,11 @@ SCORING GUIDELINES:
    0-39: No audience alignment
 
 3. AVAILABLE EVIDENCE & DEMAND (15%) - Real market data?
-   90-100: References research, case studies, data, benchmarks
-   75-89: Some evidence signals
-   60-74: General topic with assumed demand
-   40-59: Vague, limited evidence
-   0-39: No evidence signals
+   90-100: High search demand + research/case studies + strong market signals
+   75-89: Medium search demand + some evidence signals
+   60-74: General topic with assumed demand or moderate search interest
+   40-59: Vague, limited evidence or low search signals
+   0-39: No evidence signals or no market demand
 
 4. DIFFERENTIATED ANGLE (15%) - What makes it unique?
    90-100: Novel angle (proprietary, comparison, research)
@@ -125,7 +125,20 @@ Return ONLY valid JSON (no markdown):
   }
 
   private buildScoringPrompt(params: TopicScoringParams): string {
-    const { topic, strategy } = params;
+    const { topic, strategy, searchDemand } = params;
+
+    let demandSection = '';
+    if (searchDemand) {
+      demandSection = `
+REAL MARKET DATA (from Google):
+Estimated Monthly Searches: ${searchDemand.estimatedMonthlySearches.toLocaleString()}
+Demand Level: ${searchDemand.demandLevel}
+Search Results: ~${searchDemand.resultCount.toLocaleString()}
+Trending: ${searchDemand.trending ? 'Yes' : 'No'}
+
+Use this real market data to inform your "AVAILABLE EVIDENCE & DEMAND" score.
+Higher search volume = stronger evidence of real demand.`;
+    }
 
     return `TOPIC TO SCORE:
 Title: "${topic.title}"
@@ -144,6 +157,7 @@ Competitors: ${strategy.competitors.join(', ')}
 Content Mix: ${Object.entries(strategy.contentMix)
       .map(([k, v]) => `${k} ${Math.round(v * 100)}%`)
       .join(', ')}
+${demandSection}
 
 SCORE THIS TOPIC on all 7 dimensions. Return ONLY valid JSON.`;
   }

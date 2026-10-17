@@ -17,6 +17,13 @@ export interface TopicScoringParams {
     competitors: string[];
     contentMix: Record<string, number>;
   };
+  searchDemand?: {
+    estimatedMonthlySearches: number;
+    demandLevel: 'high' | 'medium' | 'low';
+    resultCount: number;
+    trending: boolean;
+    confidence: number;
+  };
 }
 
 export interface DimensionScore {
