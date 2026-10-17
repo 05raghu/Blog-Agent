@@ -33,14 +33,18 @@ export class OpenAITopicScorer implements TopicScorerProvider {
       });
 
       const content = message.choices[0].message.content;
+      console.log('[TopicScorer:OpenAI] Raw response:', content?.substring(0, 300));
+
       if (!content) {
         throw new Error('Empty response from OpenAI');
       }
 
       const result = this.parseResponse(content);
+      console.log('[TopicScorer:OpenAI] Successfully parsed response');
       return result;
     } catch (error) {
       console.error('[TopicScorer:OpenAI] Scoring failed:', error);
+      console.error('[TopicScorer:OpenAI] Error details:', (error as any).response?.data || (error as Error).message);
       throw error;
     }
   }
