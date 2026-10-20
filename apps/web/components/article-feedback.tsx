@@ -414,8 +414,8 @@ export function ArticleFeedback({
         </div>
       )}
 
-      {/* Add Comment Form */}
-      {articleStatus !== 'approved' && (
+      {/* Add Comment Form - Only for reviewers/editors/admins */}
+      {articleStatus !== 'approved' && isReviewer && (
         <div className="bg-white border border-slate-200 rounded-lg p-6">
           <h3 className="font-bold text-slate-900 mb-4">Add Feedback</h3>
           <div className="space-y-3">
@@ -451,6 +451,15 @@ export function ArticleFeedback({
               {isSubmitting ? 'Adding...' : 'Add Comment'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Author-only view message */}
+      {!isReviewer && articleStatus !== 'approved' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <p className="text-sm text-blue-800">
+            💬 <span className="font-medium">Feedback is read-only for authors.</span> You can view reviewer feedback above and make revisions. Only reviewers and editors can add feedback.
+          </p>
         </div>
       )}
     </div>
