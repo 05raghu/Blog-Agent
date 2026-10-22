@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           searchDemand = {
             estimatedMonthlySearches: demandData.estimatedMonthlySearches,
             demandLevel: demandData.demandLevel,
-            resultCount: demandData.resultCount,
+            // resultCount: demandData.resultCount,
             trending: demandData.trending,
             confidence: demandData.confidence,
           };
