@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
 import { extractInsights } from '@/lib/briefing-insights';
-import { LLMTopicScoreComponent } from '@/components/llm-topic-score';
+// import { LLMTopicScoreComponent } from '@/components/llm-topic-score';
 
 interface Topic {
   id: string;
