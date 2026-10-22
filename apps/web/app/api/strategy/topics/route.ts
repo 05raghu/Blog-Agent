@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
             estimatedMonthlySearches: demandData.estimatedMonthlySearches,
             demandLevel: demandData.demandLevel,
             // resultCount: demandData.resultCount,
+            resultCount: demandData.gscImpressions,
             trending: demandData.trending,
             confidence: demandData.confidence,
           };
