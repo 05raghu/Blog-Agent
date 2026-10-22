@@ -34,6 +34,12 @@ export interface BriefingInsights {
   gaps: string[];
 }
 
+export interface FeedbackItem {
+  type: 'blocker' | 'suggestion' | 'praise';
+  content: string;
+  section?: string;
+}
+
 export interface DraftParams {
   title: string;
   brief: string;
@@ -42,6 +48,8 @@ export interface DraftParams {
   targetAudience?: string;
   targetLength?: number;
   briefingInsights?: BriefingInsights;
+  reviewerFeedback?: FeedbackItem[];
+  currentContent?: string;
 }
 
 export interface Critique {

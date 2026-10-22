@@ -397,9 +397,16 @@ export default function ArticleEditorPage() {
     if (activeTab === 'images' && article?.title && images.length === 0 && !selectedImage && !imagesLoading) {
       handleGenerateImages();
     }
-  }, [activeTab, article?.title, selectedImage]);
+  }, [activeTab, article?.title, images.length, selectedImage, imagesLoading]);
 
-  // Fetch comments when feedback tab is accessed
+  // Fetch comments when article loads (needed for feedback-driven regeneration)
+  useEffect(() => {
+    if (id) {
+      fetchComments();
+    }
+  }, [id]);
+
+  // Fetch comments again when feedback tab is accessed (to get fresh data)
   useEffect(() => {
     if (activeTab === 'feedback' && id) {
       fetchComments();
@@ -671,7 +678,20 @@ export default function ArticleEditorPage() {
         briefingSessionId: article?.briefingSessionId,
         briefingInsights: article?.briefingInsights,
         hasInsights: !!article?.briefingInsights && Object.keys(article.briefingInsights).length > 0,
+        status: currentStage,
+        hasFeedback: comments.length > 0,
       });
+
+      // Collect unresolved feedback for regeneration if status is CHANGES_REQUESTED
+      const feedbackForRegen = currentStage === 'CHANGES_REQUESTED'
+        ? comments
+            .filter(c => !c.isResolved && (c.commentType === 'blocker' || c.commentType === 'suggestion'))
+            .map(c => ({
+              type: c.commentType,
+              content: c.content,
+              section: c.section,
+            }))
+        : undefined;
 
       const payload = {
         title: article?.title,
@@ -680,6 +700,8 @@ export default function ArticleEditorPage() {
         targetAudience: audience || undefined,
         workspaceId: contextWorkspaceId,
         briefingInsights: article?.briefingInsights || undefined,
+        feedback: feedbackForRegen,
+        currentContent: content,
       };
 
       console.log('[Draft] Request payload:', payload);
@@ -966,13 +988,14 @@ export default function ArticleEditorPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <h3 className="font-bold text-slate-900">Article Content</h3>
-                      {!content && outline && (
+                      {((!content && outline) || (currentStage === 'CHANGES_REQUESTED' && comments.length > 0)) && (
                         <button
                           onClick={handleGenerateDraft}
                           disabled={saving}
                           className="btn-primary text-sm disabled:opacity-50"
+                          title={currentStage === 'CHANGES_REQUESTED' ? 'Regenerate draft based on reviewer feedback' : 'Generate initial draft'}
                         >
-                          {saving ? '⏳ Generating...' : '✨ Generate Draft'}
+                          {saving ? '⏳ Generating...' : currentStage === 'CHANGES_REQUESTED' ? '✨ Regenerate with Feedback' : '✨ Generate Draft'}
                         </button>
                       )}
                     </div>

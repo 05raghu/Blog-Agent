@@ -74,11 +74,18 @@ export class MockTextModel implements TextModelProvider {
       }
     }
 
+    // Add note if this is feedback-driven regeneration
+    let feedbackNote = '';
+    if (params.reviewerFeedback && params.reviewerFeedback.length > 0) {
+      feedbackNote = `\n*This version incorporates reviewer feedback to address the points raised.*\n`;
+    }
+
     return `# ${title}
 
 ## Introduction
 
 This article explores key insights and findings relevant to your audience. Based on the strategic brief and content outline provided, we'll dive into the core concepts and practical applications.
+${feedbackNote}
 
 ## Key Insights
 

@@ -127,7 +127,50 @@ Requirements:
       }
     }
 
-    const userPrompt = `Generate a blog article based on this brief and outline:
+    // Format reviewer feedback if provided
+    let feedbackSection = '';
+    if (params.reviewerFeedback && params.reviewerFeedback.length > 0) {
+      const blockers = params.reviewerFeedback.filter(f => f.type === 'blocker');
+      const suggestions = params.reviewerFeedback.filter(f => f.type === 'suggestion');
+
+      feedbackSection = `\nREVIEWER FEEDBACK (address these points in your regeneration):\n`;
+
+      if (blockers.length > 0) {
+        feedbackSection += `\nBlockers (must fix):\n${blockers.map(b => `- ${b.section ? `[${b.section}]` : ''} ${b.content}`).join('\n')}\n`;
+      }
+
+      if (suggestions.length > 0) {
+        feedbackSection += `\nSuggestions (incorporate where relevant):\n${suggestions.map(s => `- ${s.section ? `[${s.section}]` : ''} ${s.content}`).join('\n')}\n`;
+      }
+    }
+
+    let userPrompt = '';
+    if (params.reviewerFeedback && params.reviewerFeedback.length > 0) {
+      // Feedback-driven regeneration
+      userPrompt = `You are regenerating a blog article based on reviewer feedback.
+
+Current article content:
+${params.currentContent || 'No current content provided'}
+
+Title: ${params.title}
+Brief: ${params.brief}
+Outline: ${params.outline}
+${feedbackSection}
+${insightsSection}
+
+Instructions for regeneration:
+1. Analyze the reviewer feedback carefully
+2. If feedback mentions specific sections or is targeted to particular parts of the article, preserve the overall structure and focus your improvements on those sections
+3. If the feedback is generic/holistic (about the entire article, tone, flow, etc.), feel free to regenerate the entire article comprehensively
+4. Address all blockers - these are non-negotiable
+5. Incorporate suggestions where they improve the article
+6. Maintain the same structure (outline) unless the feedback explicitly suggests restructuring
+7. Keep the SME insights and voice guidelines in mind
+
+Generate the improved article incorporating the feedback.`;
+    } else {
+      // Initial draft generation
+      userPrompt = `Generate a blog article based on this brief and outline:
 
 BRIEF:
 ${params.brief}
@@ -136,6 +179,7 @@ OUTLINE:
 ${params.outline}
 ${insightsSection}
 Write a complete, publish-ready draft article that weaves the SME insights naturally throughout to add credibility and specificity.`;
+    }
 
     const message = await this.client.chat.completions.create({
       model: this.model,

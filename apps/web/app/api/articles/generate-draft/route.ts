@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, brief, outline, targetAudience, briefingInsights } = await request.json();
+    const { title, brief, outline, targetAudience, briefingInsights, feedback: feedbackParam, currentContent } = await request.json();
 
     if (!title || !brief || !outline) {
       return NextResponse.json(
@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
       targetLength: 2000,
       voiceProfile: voiceProfileString,
       briefingInsights,
+      reviewerFeedback: feedbackParam,
+      currentContent,
     });
 
     return NextResponse.json({

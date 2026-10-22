@@ -206,7 +206,7 @@ export function ArticlePreview({
 
       {/* Preview Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-        ℹ️ This is how your article will appear to readers. All formatting has been applied and internal prompts have been removed.
+        ℹ️ This is how your article will appear to readers.
       </div>
     </div>
   );
