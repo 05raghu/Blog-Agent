@@ -157,7 +157,8 @@ function TopicsContent() {
           // If API has data, use it and update localStorage
           if (apiTopics.length > 0) {
             // Sort by score descending (highest to lowest)
-            apiTopics.sort((a, b) => b.score - a.score);
+            // apiTopics.sort((a, b) => b.score - a.score);
+            apiTopics.sort((a: Topic, b: Topic) => b.score - a.score);
             setTopics(apiTopics);
             localStorage.setItem('topics', JSON.stringify(apiTopics));
           }
