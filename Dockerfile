@@ -13,7 +13,8 @@ COPY apps ./apps
 COPY packages ./packages
 
 # Install workspace dependencies
-RUN pnpm install --frozen-lockfile
+# RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build the Next.js application
 RUN pnpm --filter ./apps/web build
