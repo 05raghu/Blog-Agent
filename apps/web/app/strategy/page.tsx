@@ -193,9 +193,8 @@ export default function StrategyPage() {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 px-6 py-4 rounded-lg text-sm font-medium text-white z-50 shadow-lg animate-fade-in ${
-            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-          }`}
+          className={`fixed top-4 right-4 px-6 py-4 rounded-lg text-sm font-medium text-white z-50 shadow-lg animate-fade-in ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`}
           style={{ minWidth: '300px' }}
         >
           {toast.message}
@@ -206,7 +205,7 @@ export default function StrategyPage() {
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-hero" style={{ fontSize: '46px' }}>
+            <h1 className="text-hero" style={{ fontSize: '40px' }}>
               Editorial Strategies
             </h1>
             <button
@@ -251,7 +250,7 @@ export default function StrategyPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-4">
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-slate-900">{strategy.offerings?.join(', ') || strategy.title}</h3>
+                          <h3 className="font-semibold text-slate-900" style={{ fontSize: "20px", lineHeight: "1.2" }}>{strategy.offerings?.join(', ') || strategy.title}</h3>
                           <p className="text-xs text-slate-500 mt-1">
                             Target ICPs: {strategy.icps?.join(', ') || 'None'}
                           </p>

@@ -104,7 +104,7 @@ export default function DemoPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-hero mb-4" style={{ fontSize: '46px' }}>Blog Agent MVP</h1>
+          <h1 className="text-hero mb-4" style={{ fontSize: '40px' }}>Blog Agent MVP</h1>
           {/* <p className="lead text-signal mb-2">Generate blog drafts with AI</p> */}
           {/* <p className="text-sm text-slate-600">
             {isLiveMode ? '✨ Live Claude API mode' : '🧪 Demo mode (mock responses)'}

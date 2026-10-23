@@ -247,6 +247,7 @@ export const articles = pgTable('articles', {
   selected_cta: jsonb('selected_cta'),
   generated_ctas: jsonb('generated_ctas'),
   selected_image: jsonb('selected_image'),
+  generated_images: jsonb('generated_images').default([]),
   // Workflow states
   paused_reason: text('paused_reason'),
   blocked_reason: text('blocked_reason'),

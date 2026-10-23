@@ -106,7 +106,7 @@ export default function CreateStrategyPage() {
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-hero" style={{ fontSize: '46px' }}>
+            <h1 className="text-hero" style={{ fontSize: '40px' }}>
               Create Editorial Strategy
             </h1>
             <button

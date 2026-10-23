@@ -101,7 +101,7 @@ function CalendarContent() {
           {/* Header */}
           <div className="mb-12">
             <div className="flex justify-between items-start mb-4">
-              <h1 className="text-hero" style={{ fontSize: '46px' }}>
+              <h1 className="text-hero" style={{ fontSize: '40px' }}>
                 Content Calendar
               </h1>
               {strategyId && (
