@@ -10,7 +10,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps ./apps
 COPY packages ./packages
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --reporter=append-only --foreground-scripts
+# RUN pnpm install --no-frozen-lockfile
 
 RUN pnpm --filter ./apps/web build
 RUN pnpm --filter @blog-agent/worker build
