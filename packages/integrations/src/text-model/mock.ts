@@ -1,6 +1,6 @@
 // Mock TextModel implementation — deterministic responses for testing/demo without API keys
 
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams } from './index';
 
 export class MockTextModel implements TextModelProvider {
   async generateBrief(params: BriefParams): Promise<string> {
@@ -456,5 +456,15 @@ Move forward next week:
     }
 
     return results;
+  }
+
+  async craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string> {
+    const behaviors = {
+      collapse: 'Collapse — Show one human situation with two plausible outcomes. Use Signal Cyan for the observed state.',
+      entangle: 'Entangle — Connect a small decision to a distant consequence. Favor Azure with Ember interruption.',
+      interfere: 'Interfere — Overlap incompatible actions as interference bands. Favor Iris with Sulphur counterpoint.',
+    };
+
+    return `[Mock Brand Prompt - ${params.behavior}] ${behaviors[params.behavior]} Create a high-contrast editorial photomontage for: "${params.title}". Context: ${params.topicContext.substring(0, 100)}... Use flat print treatment, halftone grain, and Signal Cyan for resolved meaning only.`;
   }
 }

@@ -1,7 +1,8 @@
 // Live OpenAI TextModel implementation — uses GPT-4 API for generation
 
 import OpenAI from 'openai';
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams } from './index';
+import { buildBrandSystemPrompt } from '../image-model/brand-guide';
 
 export class OpenAITextModel implements TextModelProvider {
   private client: OpenAI;
@@ -587,5 +588,32 @@ Respond with the JSON array only.`;
       : [];
 
     return candidates;
+  }
+
+  async craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string> {
+    const systemPrompt = buildBrandSystemPrompt(params.behavior);
+
+    const userPrompt = `Article Title: ${params.title}
+
+Raw Topic/Context: ${params.topicContext}
+
+Generate ONE polished, ready-to-use image generation prompt that follows the Codewave brand system recipe for the ${params.behavior} quantum behavior.`;
+
+    const message = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    const content = message.choices[0].message.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    return content.trim();
   }
 }

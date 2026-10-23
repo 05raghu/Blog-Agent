@@ -1,7 +1,8 @@
 // Live Anthropic TextModel implementation — uses Claude API for generation
 
 import Anthropic from '@anthropic-ai/sdk';
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams } from './index';
+import { buildBrandSystemPrompt } from '../image-model/brand-guide';
 
 export class AnthropicTextModel implements TextModelProvider {
   private client: Anthropic;
@@ -562,5 +563,29 @@ Respond with the JSON array only.`;
       : [];
 
     return candidates;
+  }
+
+  async craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string> {
+    const systemPrompt = buildBrandSystemPrompt(params.behavior);
+
+    const userPrompt = `Article Title: ${params.title}
+
+Raw Topic/Context: ${params.topicContext}
+
+Generate ONE polished, ready-to-use image generation prompt that follows the Codewave brand system recipe for the ${params.behavior} quantum behavior.`;
+
+    const message = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude');
+    }
+
+    return content.text.trim();
   }
 }

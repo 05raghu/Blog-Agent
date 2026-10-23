@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getImageModelProvider } from '@/lib/image-model';
+import { getTextModelProvider } from '@/lib/text-model';
 
 function extractImagePromptsFromContent(content: string): string[] {
   // Look for image prompts in the content
@@ -80,14 +81,30 @@ export async function POST(request: NextRequest) {
 
     console.log('[DEBUG-11] Generating images from', imagePrompts.length, 'prompts...');
 
-    // Generate one image per prompt
+    // Behavior rotation: collapse → entangle → interfere
+    const behaviors: Array<'collapse' | 'entangle' | 'interfere'> = ['collapse', 'entangle', 'interfere'];
+
+    // Generate one image per prompt, with LLM-crafted brand-compliant prompts
     const imageResults = await Promise.all(
       imagePrompts.map(async (prompt, idx) => {
         try {
           console.log(`[DEBUG-12.${idx}] Generating image ${idx + 1}...`);
+
+          // Step 1: Craft a brand-compliant image prompt via LLM
+          const behavior = behaviors[idx] || 'collapse';
+          const textProvider = await getTextModelProvider();
+          console.log(`[DEBUG-12.${idx}] Crafting brand-compliant prompt for behavior: ${behavior}`);
+          const brandedPrompt = await textProvider.craftBrandedImagePrompt({
+            title,
+            topicContext: prompt,
+            behavior,
+          });
+          console.log(`[DEBUG-12.${idx}] ✓ Brand-compliant prompt crafted (${brandedPrompt.length} chars)`);
+
+          // Step 2: Generate image using the branded prompt
           const result = await provider.generateImages({
             title,
-            brief: prompt,
+            brief: brandedPrompt,
             outline: '',
             style: style || 'professional',
           });

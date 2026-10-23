@@ -2,6 +2,7 @@
 
 import OpenAI from 'openai';
 import { ImageModelProvider, ImageGenerationParams, ImageGenerationResult } from './index';
+import { buildBrandSafetyNetSuffix } from './brand-guide';
 
 // Polyfill File API for Node.js if not available
 if (typeof global !== 'undefined' && !global.File) {
@@ -26,8 +27,19 @@ export class OpenAIImageModel implements ImageModelProvider {
       ? this.createDirectPrompts(params)
       : this.generatePrompts(params);
 
+    // Assign behavior to each prompt: 0→collapse, 1→entangle, 2→interfere
+    const behaviors: Array<'collapse' | 'entangle' | 'interfere'> = ['collapse', 'entangle', 'interfere'];
+    const promptsWithSafetyNet = prompts.map((prompt, index) => {
+      const behavior = behaviors[index] || 'collapse';
+      const safetyNetSuffix = buildBrandSafetyNetSuffix(behavior);
+      return {
+        ...prompt,
+        prompt: prompt.prompt + safetyNetSuffix,
+      };
+    });
+
     const images = await Promise.all(
-      prompts.map(async (prompt) => {
+      promptsWithSafetyNet.map(async (prompt) => {
         try {
           console.log('[OpenAI] Generating image with prompt:', prompt.prompt.substring(0, 80));
           const response = await this.client.images.generate({

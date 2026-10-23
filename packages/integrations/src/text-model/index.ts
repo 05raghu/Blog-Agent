@@ -1,5 +1,11 @@
 // Text model provider interface — Anthropic Claude + OpenAI + mock
 
+export interface CraftImagePromptParams {
+  title: string;
+  topicContext: string; // raw extracted-from-content or fallback-template prompt text
+  behavior: 'collapse' | 'entangle' | 'interfere';
+}
+
 export interface TextModelProvider {
   generateBrief(params: BriefParams): Promise<string>;
   generateOutline(params: OutlineParams): Promise<string>;
@@ -10,6 +16,7 @@ export interface TextModelProvider {
   suggestInternalLinks(params: LinkSuggestionParams): Promise<LinkSuggestion[]>;
   generateCTA(params: CTAParams): Promise<CTAResult>;
   generateTopicCandidates(params: TopicGenerationParams): Promise<GeneratedTopicCandidate[]>;
+  craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string>;
 }
 
 export interface BriefParams {
