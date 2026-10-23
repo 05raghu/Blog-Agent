@@ -26,60 +26,60 @@ function extractImagePromptsFromContent(content: string): string[] {
     }
   }
 
-  console.log('[Extract] Found', prompts.length, 'image prompts in content');
-  if (prompts.length > 0) {
-    prompts.forEach((p, i) => {
-      console.log(`[Extract] Prompt ${i + 1} (${p.length} chars):`, p.substring(0, 80) + '...');
-    });
-  }
-
   return prompts;
 }
 
 export async function POST(request: NextRequest) {
-  console.log('\n=== [API] Generate Images Request Started ===');
+  const debug: any = { steps: [] };
+  
   try {
     const body = await request.json();
     const { title, content, style } = body;
 
-    console.log('[DEBUG-1] Raw request body keys:', Object.keys(body));
-    console.log('[DEBUG-2] Title:', title ? `${title.substring(0, 50)}...` : 'MISSING');
-    console.log('[DEBUG-3] Content length:', content?.length || 0);
-    console.log('[DEBUG-4] Style:', style || 'NOT PROVIDED (will default to professional)');
+    debug.steps.push('request_received');
+    debug.title = title ? title.substring(0, 50) : 'MISSING';
+    debug.contentLength = content?.length || 0;
 
     if (!title) {
-      console.error('[ERROR] Title is required but was not provided');
       return NextResponse.json(
-        { error: 'Title is required' },
+        { error: 'Title is required', debug },
         { status: 400 }
       );
     }
 
     // Try to extract image prompts from content first
-    console.log('[DEBUG-5] Checking for image prompts in content...');
     let imagePrompts: string[] = [];
 
     if (content) {
       imagePrompts = extractImagePromptsFromContent(content);
-      console.log('[DEBUG-6] ✓ Extracted', imagePrompts.length, 'prompts from content');
+      debug.steps.push('prompts_extracted');
+      debug.extractedPromptsCount = imagePrompts.length;
     }
 
     // If no prompts found in content, generate them from title/brief/outline
     if (imagePrompts.length === 0) {
-      console.log('[DEBUG-7] No prompts in content, generating from title/brief/outline...');
       imagePrompts = [
         `Professional illustration for article: ${title}. High quality, suitable for business blog post.`,
         `Creative visual representation of: ${title}. Modern, eye-catching design.`,
         `Conceptual illustration about ${title}. Abstract, professional style.`,
       ];
-      console.log('[DEBUG-8] Generated', imagePrompts.length, 'default prompts');
+      debug.steps.push('fallback_prompts_generated');
+      debug.fallbackPromptsCount = imagePrompts.length;
     }
 
-    console.log('[DEBUG-9] Getting image provider...');
-    const provider = await getImageModelProvider();
-    console.log('[DEBUG-10] ✓ Provider obtained:', provider?.constructor?.name || 'UNKNOWN');
+    debug.totalPrompts = imagePrompts.length;
 
-    console.log('[DEBUG-11] Generating images from', imagePrompts.length, 'prompts...');
+    // Get providers
+    let provider;
+    try {
+      provider = await getImageModelProvider();
+      debug.steps.push('image_provider_obtained');
+      debug.imageProvider = provider?.constructor?.name || 'UNKNOWN';
+    } catch (err) {
+      debug.steps.push('image_provider_error');
+      debug.imageProviderError = String(err);
+      return NextResponse.json({ images: [], debug }, { status: 200 });
+    }
 
     // Behavior rotation: collapse → entangle → interfere
     const behaviors: Array<'collapse' | 'entangle' | 'interfere'> = ['collapse', 'entangle', 'interfere'];
@@ -88,71 +88,76 @@ export async function POST(request: NextRequest) {
     const imageResults = await Promise.all(
       imagePrompts.map(async (prompt, idx) => {
         try {
-          console.log(`[DEBUG-12.${idx}] Generating image ${idx + 1}...`);
-
-          // Step 1: Craft a brand-compliant image prompt via LLM
           const behavior = behaviors[idx] || 'collapse';
-          const textProvider = await getTextModelProvider();
-          console.log(`[DEBUG-12.${idx}] Crafting brand-compliant prompt for behavior: ${behavior}`);
-          const brandedPrompt = await textProvider.craftBrandedImagePrompt({
-            title,
-            topicContext: prompt,
-            behavior,
-          });
-          console.log(`[DEBUG-12.${idx}] ✓ Brand-compliant prompt crafted (${brandedPrompt.length} chars)`);
+          
+          // Step 1: Craft a brand-compliant image prompt via LLM
+          let textProvider;
+          try {
+            textProvider = await getTextModelProvider();
+            debug.steps.push(`text_provider_${idx}_obtained`);
+          } catch (err) {
+            debug.steps.push(`text_provider_${idx}_error`);
+            return null;
+          }
+
+          let brandedPrompt;
+          try {
+            brandedPrompt = await textProvider.craftBrandedImagePrompt({
+              title,
+              topicContext: prompt,
+              behavior,
+            });
+            debug.steps.push(`branded_prompt_${idx}_crafted`);
+          } catch (err) {
+            debug.steps.push(`branded_prompt_${idx}_error`);
+            debug[`brandedPromptError_${idx}`] = String(err);
+            return null;
+          }
 
           // Step 2: Generate image using the branded prompt
-          const result = await provider.generateImages({
-            title,
-            brief: brandedPrompt,
-            outline: '',
-            style: style || 'professional',
-          });
+          try {
+            const result = await provider.generateImages({
+              title,
+              brief: brandedPrompt,
+              outline: '',
+              style: style || 'professional',
+            });
 
-          if (result.images && result.images.length > 0) {
-            console.log(`[DEBUG-12.${idx}] ✓ Image ${idx + 1} generated`);
-            return result.images[0];
+            if (result.images && result.images.length > 0) {
+              debug.steps.push(`image_${idx}_generated`);
+              return result.images[0];
+            }
+            debug.steps.push(`image_${idx}_no_results`);
+            return null;
+          } catch (err) {
+            debug.steps.push(`image_${idx}_generation_error`);
+            debug[`imageGenError_${idx}`] = String(err);
+            return null;
           }
-          return null;
         } catch (err) {
-          console.error(`[DEBUG-12.${idx}] ✗ Failed to generate image ${idx + 1}:`, err);
+          debug.steps.push(`image_${idx}_outer_error`);
           return null;
         }
       })
     );
 
+    debug.steps.push('all_images_processed');
+    debug.generatedImagesCount = imageResults.filter((img) => img !== null).length;
+
     const result = {
       images: imageResults.filter((img) => img !== null),
+      debug,
     };
 
-    console.log('[DEBUG-13] ✓ All images generated');
-    console.log('[DEBUG-14] Result images count:', result.images?.length || 0);
-
-    if (!result.images || result.images.length === 0) {
-      console.warn('[WARN] No images generated!');
-      console.warn('[WARN] Returning result:', JSON.stringify(result));
-    } else {
-      console.log('[SUCCESS] Generated', result.images.length, 'images');
-      result.images.forEach((img, idx) => {
-        console.log(`[IMAGE-${idx}] URL length: ${img.url?.length || 0}, prompt length: ${img.prompt?.length || 0}`);
-      });
-    }
-
-    const response = NextResponse.json(result);
-    console.log('[DEBUG-14] Response status:', response.status);
-    console.log('=== [API] Generate Images Request Completed ===\n');
-    return response;
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('[ERROR] Generate images failed:', error);
-    console.error('[ERROR] Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    console.error('[ERROR] Error message:', error instanceof Error ? error.message : String(error));
-    console.error('[ERROR] Stack:', error instanceof Error ? error.stack : 'N/A');
+    debug.steps.push('top_level_error');
+    debug.topLevelError = String(error);
 
     return NextResponse.json(
       {
         error: 'Failed to generate images',
-        message: error instanceof Error ? error.message : String(error),
-        debug: process.env.NODE_ENV === 'development' ? String(error) : undefined
+        debug,
       },
       { status: 500 }
     );
