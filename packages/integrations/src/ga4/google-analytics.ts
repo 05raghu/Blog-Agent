@@ -18,9 +18,7 @@ export class GoogleAnalytics4 implements GA4Provider {
   }
 
   async getTrafficForTopic(params: GA4QueryParams): Promise<GA4Metrics> {
-    const { topic, keywords = [], daysBack = 90 } = params;
-    const allKeywords = [topic, ...keywords].filter((k) => k && k.trim());
-
+    const { topic, daysBack = 90 } = params;
     try {
       console.log('[GA4] Querying traffic for topic:', topic);
 
@@ -60,32 +58,6 @@ export class GoogleAnalytics4 implements GA4Provider {
     }
   }
 
-  private buildKeywordFilters(keywords: string[]) {
-    // Build OR filter for any keyword matching
-    if (keywords.length === 0) {
-      return undefined;
-    }
-
-    const expressions = keywords.map((keyword) => ({
-      field_name: 'pageTitle',
-      string_filter: {
-        match_type: 'CONTAINS',
-        value: keyword,
-      },
-    }));
-
-    // Single filter without OR wrapper
-    if (expressions.length === 1) {
-      return expressions[0];
-    }
-
-    // Multiple filters with OR
-    return {
-      or_group: {
-        expressions: expressions,
-      },
-    };
-  }
 
   private parseGA4Response(data: any): GA4Metrics {
     const rows = data.rows || [];

@@ -18,51 +18,6 @@ export function ArticlePreview({
   selectedImage,
 }: ArticlePreviewProps) {
   // Render bare URLs as clickable links (same as content tab preview)
-  const renderLinksAndText = (text: string): (string | JSX.Element)[] => {
-    const parts: (string | JSX.Element)[] = [];
-    let lastIndex = 0;
-
-    // Match bare URLs: https://... or http://...
-    const urlRegex = /https?:\/\/[^\s)]+/g;
-    let urlMatch;
-
-    while ((urlMatch = urlRegex.exec(text)) !== null) {
-      // Add text before URL
-      if (urlMatch.index > lastIndex) {
-        parts.push(text.substring(lastIndex, urlMatch.index));
-      }
-
-      let finalUrl = urlMatch[0].trim();
-
-      // Remove trailing punctuation if present
-      finalUrl = finalUrl.replace(/[.,;:!?)]+$/, '');
-
-      parts.push(
-        <a
-          key={`url-${urlMatch.index}`}
-          href={finalUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-signal hover:text-signal-hover underline cursor-pointer"
-          onClick={(e) => {
-            e.preventDefault();
-            window.open(finalUrl, '_blank');
-          }}
-        >
-          {finalUrl.length > 60 ? finalUrl.substring(0, 57) + '...' : finalUrl}
-        </a>
-      );
-
-      lastIndex = urlRegex.lastIndex;
-    }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-
-    return parts.length > 0 ? parts : [text];
-  };
 
   // Convert markdown to HTML with proper link handling
   const markdownToHtml = (markdown: string): string => {
@@ -90,7 +45,7 @@ export function ArticlePreview({
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
     // Convert numbered lists
-    html = html.replace(/^\d+\. (.*?)$/gm, (match, item) => {
+    html = html.replace(/^\d+\. (.*?)$/gm, (_match, item) => {
       return `<li>${item}</li>`;
     });
 
