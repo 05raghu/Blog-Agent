@@ -28,3 +28,4 @@ services:
     environment:
       NODE_ENV: production
     command: ["pnpm", "--filter", "./apps/worker", "start"]
+
