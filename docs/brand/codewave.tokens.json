@@ -1,0 +1,168 @@
+{
+  "$schema": "https://design-tokens.org/format/",
+  "meta": {
+    "name": "Codewave Quantum Editorial System",
+    "version": "1.5.0-architecture-of-observation",
+    "principle": "Everything is possible until a choice is made.",
+    "status": "Brand-system approval; not yet applied to the homepage"
+  },
+  "color": {
+    "core": {
+      "ink": { "$value": "#0A0A0B", "$type": "color", "$description": "Primary canvas and text" },
+      "paper": { "$value": "#F7F6F2", "$type": "color", "$description": "Soft interface white" },
+      "signal": { "$value": "#A8DDE8", "$type": "color", "$description": "Observed, selected or authored outcome" },
+      "parchment": { "$value": "#EDE7DA", "$type": "color", "$description": "Warm editorial field" },
+      "pewter": { "$value": "#3C4A48", "$type": "color", "$description": "Grounding and shadow ink" },
+      "copper": { "$value": "#B3733E", "$type": "color", "$description": "Material interruption" }
+    },
+    "editorial": {
+      "azure": { "$value": "#438FE7", "$type": "color", "$description": "Entangle field" },
+      "sulphur": { "$value": "#F2EC67", "$type": "color", "$description": "Interference counterpoint" },
+      "ember": { "$value": "#E66D3A", "$type": "color", "$description": "Campaign interruption" },
+      "iris": { "$value": "#6552C7", "$type": "color", "$description": "Interfere field" }
+    },
+    "support": {
+      "inkRaised": { "$value": "#151517", "$type": "color" },
+      "inkSoft": { "$value": "#242426", "$type": "color" },
+      "signalTint": { "$value": "#DCEFF3", "$type": "color" },
+      "lineDark": { "$value": "#343437", "$type": "color" },
+      "lineLight": { "$value": "#D7D5CF", "$type": "color" }
+    },
+    "selection": {
+      "default": { "$value": "rgba(168, 221, 232, 0.58)", "$type": "color", "$description": "Translucent Signal Cyan selection on Ink, Paper and editorial fields" },
+      "onSignal": { "$value": "rgba(10, 10, 11, 0.72)", "$type": "color", "$description": "Inverse selection field on Signal Cyan surfaces" }
+    }
+  },
+  "type": {
+    "family": {
+      "display": { "$value": "Signifier, Georgia, serif", "$type": "fontFamily" },
+      "body": { "$value": "Sohne, Arial, sans-serif", "$type": "fontFamily" },
+      "mono": { "$value": "Sohne Mono, ui-monospace, monospace", "$type": "fontFamily" }
+    },
+    "weight": {
+      "display": { "$value": 400, "$type": "fontWeight", "$description": "Signifier is never set bold" },
+      "body": { "$value": 400, "$type": "fontWeight" },
+      "utility": { "$value": 600, "$type": "fontWeight" }
+    },
+    "size": {
+      "display": { "$value": "clamp(4.5rem, 9.3vw, 9.5rem)", "$type": "dimension", "$description": "Hero / H1 role" },
+      "h1": { "$value": "clamp(4.5rem, 9.3vw, 9.5rem)", "$type": "dimension", "$description": "One page thesis" },
+      "h2": { "$value": "clamp(3.25rem, 6.8vw, 7.6rem)", "$type": "dimension", "$description": "Section thesis" },
+      "h3": { "$value": "clamp(2rem, 3.3vw, 3.25rem)", "$type": "dimension", "$description": "Card, chapter or editorial title" },
+      "bodyLarge": { "$value": "clamp(1.05rem, 1.7vw, 1.35rem)", "$type": "dimension", "$description": "Lead paragraph" },
+      "body": { "$value": "1rem", "$type": "dimension" },
+      "small": { "$value": "0.8125rem", "$type": "dimension" },
+      "label": { "$value": "0.6875rem", "$type": "dimension" }
+    },
+    "role": {
+      "hero": {
+        "size": { "$value": "clamp(4.5rem, 9.3vw, 9.5rem)", "$type": "dimension" },
+        "lineHeight": { "$value": 0.84, "$type": "number" },
+        "letterSpacing": { "$value": "-0.062em", "$type": "dimension" },
+        "measure": { "$value": "8–10ch", "$type": "string" },
+        "use": { "$value": "One page thesis; maximum one H1", "$type": "string" }
+      },
+      "section": {
+        "size": { "$value": "clamp(3.25rem, 6.8vw, 7.6rem)", "$type": "dimension" },
+        "lineHeight": { "$value": 0.88, "$type": "number" },
+        "letterSpacing": { "$value": "-0.055em", "$type": "dimension" },
+        "measure": { "$value": "8–12ch", "$type": "string" },
+        "use": { "$value": "One clear H2 thesis per section", "$type": "string" }
+      },
+      "title": {
+        "size": { "$value": "clamp(2rem, 3.3vw, 3.25rem)", "$type": "dimension" },
+        "lineHeight": { "$value": 1, "$type": "number" },
+        "letterSpacing": { "$value": "-0.035em", "$type": "dimension" },
+        "measure": { "$value": "14ch", "$type": "string" },
+        "use": { "$value": "Card, chapter or editorial H3", "$type": "string" }
+      },
+      "lead": {
+        "size": { "$value": "clamp(1.05rem, 1.7vw, 1.35rem)", "$type": "dimension" },
+        "lineHeight": { "$value": 1.55, "$type": "number" },
+        "measure": { "$value": "45–55ch", "$type": "string" },
+        "use": { "$value": "Page or section setup; one short paragraph", "$type": "string" }
+      },
+      "body": {
+        "size": { "$value": "1rem", "$type": "dimension" },
+        "lineHeight": { "$value": 1.55, "$type": "number" },
+        "measure": { "$value": "55–65ch", "$type": "string" },
+        "use": { "$value": "Reading, explanation and evidence", "$type": "string" }
+      },
+      "label": {
+        "size": { "$value": "0.7rem", "$type": "dimension" },
+        "lineHeight": { "$value": 1.4, "$type": "number" },
+        "letterSpacing": { "$value": "0.12em", "$type": "dimension" },
+        "use": { "$value": "Index, state, provenance and machine-readable metadata", "$type": "string" }
+      },
+      "action": {
+        "size": { "$value": "0.9375rem", "$type": "dimension" },
+        "weight": { "$value": 600, "$type": "fontWeight" },
+        "use": { "$value": "Buttons and short action labels only", "$type": "string" }
+      }
+    }
+  },
+  "space": {
+    "2xs": { "$value": "0.25rem", "$type": "dimension" },
+    "xs": { "$value": "0.5rem", "$type": "dimension" },
+    "sm": { "$value": "0.75rem", "$type": "dimension" },
+    "md": { "$value": "1rem", "$type": "dimension" },
+    "lg": { "$value": "1.5rem", "$type": "dimension" },
+    "xl": { "$value": "2rem", "$type": "dimension" },
+    "2xl": { "$value": "3rem", "$type": "dimension" },
+    "3xl": { "$value": "4.5rem", "$type": "dimension" },
+    "section": { "$value": "clamp(5rem, 10vw, 10rem)", "$type": "dimension" }
+  },
+  "shape": {
+    "radius": {
+      "none": { "$value": "0", "$type": "dimension" },
+      "micro": { "$value": "2px", "$type": "dimension" },
+      "action": { "$value": "45px", "$type": "dimension", "$description": "Shared editorial action capsule; never clipped, notched or decorated with internal symbols" },
+      "aperture": { "$value": "999px", "$type": "dimension" }
+    },
+    "cut": { "$value": "10px", "$type": "dimension", "$description": "Hard cut-paper editorial crops only; never action controls" },
+    "stroke": { "$value": "1.5px", "$type": "dimension" },
+    "action": {
+      "stroke": { "$value": "1.5px", "$type": "dimension" },
+      "duration": { "$value": "260ms", "$type": "duration", "$description": "Direct action state response" },
+      "arrowDuration": { "$value": "360ms", "$type": "duration", "$description": "Long arrow completion" }
+    }
+  },
+  "motion": {
+    "duration": {
+      "instant": { "$value": "120ms", "$type": "duration" },
+      "interface": { "$value": "240ms", "$type": "duration" },
+      "exchange": { "$value": "620ms", "$type": "duration", "$description": "Responsive peer-card expansion and collapse" },
+      "observe": { "$value": "640ms", "$type": "duration" },
+      "story": { "$value": "960ms", "$type": "duration" },
+      "signature": { "$value": "1450ms", "$type": "duration", "$description": "Autonomous branded entrances and cinematic sequences; never direct hover response" },
+      "ambient": { "$value": "6000ms", "$type": "duration" }
+    },
+    "easing": {
+      "standard": { "$value": "cubic-bezier(0.22, 1, 0.36, 1)", "$type": "cubicBezier" },
+      "collapse": { "$value": "cubic-bezier(0.83, 0, 0.17, 1)", "$type": "cubicBezier" },
+      "entangle": { "$value": "cubic-bezier(0.16, 1, 0.3, 1)", "$type": "cubicBezier" },
+      "signature": { "$value": "cubic-bezier(0.65, 0, 0.35, 1)", "$type": "cubicBezier", "$description": "Symmetric cinematic easing for large layout exchanges" },
+      "drift": { "$value": "cubic-bezier(0.45, 0, 0.55, 1)", "$type": "cubicBezier" }
+    }
+  },
+  "expression": {
+    "cultureDensity": {
+      "coreAndProduct": { "$value": 0.05, "$type": "number", "$description": "Maximum cultural expression for core brand and product surfaces" },
+      "editorial": { "$value": 0.15, "$type": "number", "$description": "Maximum cultural expression for editorial surfaces" },
+      "campaignAndEvent": { "$value": 0.25, "$type": "number", "$description": "Maximum cultural expression for campaigns and events" }
+    },
+    "motif": {
+      "family": { "$value": "Architecture of Observation", "$type": "string" },
+      "instruments": { "$value": "Solar Measure, Observational Cut, Recursive Descent, System Flow", "$type": "string" },
+      "countCore": { "$value": 0, "$type": "number", "$description": "Core interface defaults to no cultural instrument" },
+      "countEditorial": { "$value": 1, "$type": "number", "$description": "One approved architectural instrument for editorial use" },
+      "countSignature": { "$value": 1, "$type": "number", "$description": "One large approved instrument for campaign or event use" }
+    }
+  },
+  "layout": {
+    "max": { "$value": "1440px", "$type": "dimension" },
+    "measure": { "$value": "66ch", "$type": "dimension" },
+    "gutter": { "$value": "clamp(1rem, 4vw, 4rem)", "$type": "dimension" },
+    "gridColumns": { "$value": 12, "$type": "number" }
+  }
+}
