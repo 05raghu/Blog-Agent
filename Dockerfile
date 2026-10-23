@@ -10,6 +10,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps ./apps
 COPY packages ./packages
 
+# Diagnostic: skip Puppeteer's automatic browser download
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 RUN pnpm install --no-frozen-lockfile --reporter=append-only
 # RUN pnpm install --no-frozen-lockfile
 
