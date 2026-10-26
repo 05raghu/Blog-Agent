@@ -211,7 +211,7 @@ export class MockTopicScorer implements TopicScorerProvider {
   private getReasoningForScore(
     dimension: string,
     score: number,
-    topic: TopicScoringParams['topic'],
+    _topic: TopicScoringParams['topic'],
     strategy: TopicScoringParams['strategy']
   ): string {
     const reasonings: Record<string, Record<string, string>> = {

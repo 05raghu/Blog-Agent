@@ -19,6 +19,8 @@ interface PublishReadinessProps {
   claimsVerified: number;
   totalClaims: number;
   hasCTA?: boolean;
+  isSubmitting?: boolean;
+  onSubmitForReview?: () => void | Promise<void>;
 }
 
 export function PublishReadiness({
