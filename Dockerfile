@@ -10,9 +10,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps ./apps
 COPY packages ./packages
 
-RUN pnpm install --no-frozen-lockfile
+# Diagnostic: skip Puppeteer's automatic browser download
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
+RUN pnpm install --no-frozen-lockfile --reporter=append-only
+# RUN pnpm install --no-frozen-lockfile
 
 RUN pnpm --filter ./apps/web build
+RUN pnpm --filter @blog-agent/worker build
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

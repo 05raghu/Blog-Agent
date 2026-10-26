@@ -538,7 +538,7 @@ function scoreConversionPotentialV2(
 function generateScoreExplanation(
   breakdown: TopicScoreBreakdown,
   finalScore: number,
-  topic: TopicCandidate,
+  _topic: TopicCandidate,
   strategy: Strategy
 ): string {
   let explanation = '';
@@ -570,7 +570,7 @@ function generateScoreExplanation(
 }
 
 function detectCannibalization(
-  topic: TopicCandidate
+  _topic: TopicCandidate
 ): { exists: boolean; message?: string } {
   return {
     exists: false,
@@ -579,8 +579,8 @@ function detectCannibalization(
 }
 
 function getSmERecommendations(
-  topic: TopicCandidate,
-  smeFitScore: number
+  _topic: TopicCandidate,
+  _smeFitScore: number
 ): Array<{ name: string; fitScore: number; reason: string }> {
   // Placeholder - would integrate with SME profiles
   return [];

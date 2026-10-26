@@ -1,0 +1,31 @@
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blog-agent:latest
+    container_name: blog-agent-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  worker:
+    image: blog-agent:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blog-agent-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: ["pnpm", "--filter", "./apps/worker", "start"]
+
