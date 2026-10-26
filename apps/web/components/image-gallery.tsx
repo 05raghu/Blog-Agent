@@ -108,11 +108,10 @@ export function ImageGallery({
             {images.map((image, idx) => (
               <div
                 key={idx}
-                className={`border rounded-lg p-4 cursor-pointer transition-colors overflow-hidden ${
-                  selectedIndex === idx
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 hover:bg-slate-50'
-                }`}
+                className={`border rounded-lg p-4 cursor-pointer transition-colors overflow-hidden ${selectedIndex === idx
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 hover:bg-slate-50'
+                  }`}
                 onClick={() => handleSelectImage(idx)}
               >
                 <div className="flex gap-4">
@@ -129,9 +128,10 @@ export function ImageGallery({
                   <div className="flex-1 flex flex-col">
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-900 mb-2">Image {idx + 1}</p>
-                      <p className="text-xs text-slate-600 mb-3">
+                      {/* Prompt hidden for now */}
+                      {/* <p className="text-xs text-slate-600 mb-3">
                         <span className="font-medium">Prompt:</span> {image.prompt}
-                      </p>
+                      </p> */}
                       <p className="text-xs text-slate-500">
                         <span className="font-medium">Alt text:</span> {image.alt}
                       </p>

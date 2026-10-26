@@ -150,8 +150,19 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     if (updateError || !updated) {
       console.error('[API] Article update error:', updateError);
+      console.error('[API] Update data was:', JSON.stringify(updateData));
+      console.error('[API] Update error details:', {
+        message: updateError?.message,
+        code: updateError?.code,
+        details: updateError?.details,
+      });
       return NextResponse.json(
-        { error: 'Failed to update article' },
+        {
+          error: 'Failed to update article',
+          details: updateError?.message || 'No data returned',
+          code: updateError?.code,
+          hint: updateError?.hint
+        },
         { status: 400 }
       );
     }
