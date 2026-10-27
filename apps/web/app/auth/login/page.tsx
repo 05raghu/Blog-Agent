@@ -48,8 +48,10 @@ export default function LoginPage() {
       localStorage.setItem('authToken', data.token);
 
       setSuccess('Login successful! Redirecting...');
-      // Redirect immediately
-      router.push('/overview');
+      // Small delay to ensure localStorage is flushed before navigation
+      setTimeout(() => {
+        router.push('/overview');
+      }, 100);
     } catch (err) {
       setError((err as Error).message || 'An error occurred');
     } finally {
