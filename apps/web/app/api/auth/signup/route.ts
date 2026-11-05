@@ -61,44 +61,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create workspace if provided
+    // Check if workspace already exists or create it
     let workspaceId = null;
     if (workspaceName && workspaceSlug) {
-      workspaceId = `workspace_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      const { error: wsError } = await supabase
+      // Check if workspace with this slug already exists
+      const { data: existingWorkspace } = await supabase
         .from('workspaces')
-        .insert({
-          id: workspaceId,
-          name: workspaceName,
-          slug: workspaceSlug,
-          description: `${workspaceName} workspace`,
-          config: {},
-        });
+        .select('id, name')
+        .eq('slug', workspaceSlug)
+        .single();
 
-      if (wsError) {
-        console.error('[Auth] Workspace creation error:', wsError);
-        return NextResponse.json(
-          { error: 'Failed to create workspace' },
-          { status: 400 }
-        );
+      if (existingWorkspace) {
+        // Workspace exists, use it
+        workspaceId = existingWorkspace.id;
+      } else {
+        // Create new workspace
+        workspaceId = `workspace_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        const { error: wsError } = await supabase
+          .from('workspaces')
+          .insert({
+            id: workspaceId,
+            name: workspaceName,
+            slug: workspaceSlug,
+            description: `${workspaceName} workspace`,
+            config: {},
+          });
+
+        if (wsError) {
+          console.error('[Auth] Workspace creation error:', wsError);
+          return NextResponse.json(
+            { error: 'Failed to create workspace' },
+            { status: 400 }
+          );
+        }
       }
 
-      // Create membership with provided role
-      const { error: memError } = await supabase
+      // Check if user is already a member of this workspace
+      const { data: existingMembership } = await supabase
         .from('memberships')
-        .insert({
-          workspace_id: workspaceId,
-          user_id: userId,
-          role,
-        });
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId)
+        .single();
 
-      if (memError) {
-        console.error('[Auth] Membership creation error:', memError);
-        return NextResponse.json(
-          { error: 'Failed to create membership' },
-          { status: 400 }
-        );
+      if (!existingMembership) {
+        // Create membership with provided role
+        const { error: memError } = await supabase
+          .from('memberships')
+          .insert({
+            workspace_id: workspaceId,
+            user_id: userId,
+            role,
+          });
+
+        if (memError) {
+          console.error('[Auth] Membership creation error:', memError);
+          return NextResponse.json(
+            { error: 'Failed to create membership' },
+            { status: 400 }
+          );
+        }
       }
     }
 

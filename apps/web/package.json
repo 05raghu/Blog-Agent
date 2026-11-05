@@ -16,6 +16,7 @@
     "@blog-agent/db": "workspace:*",
     "@blog-agent/domain": "workspace:*",
     "@blog-agent/integrations": "workspace:*",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.0.0",
