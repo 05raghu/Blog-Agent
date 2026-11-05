@@ -47,11 +47,18 @@ export default function LoginPage() {
       // Store token in localStorage
       localStorage.setItem('authToken', data.token);
 
+      // Verify token is readable from localStorage before redirecting
+      const storedToken = localStorage.getItem('authToken');
+      if (!storedToken) {
+        setError('Failed to store authentication token. Please try again.');
+        return;
+      }
+
       setSuccess('Login successful! Redirecting...');
-      // Small delay to ensure localStorage is flushed before navigation
+      // Increase delay to ensure localStorage is fully flushed and readable
       setTimeout(() => {
         router.push('/overview');
-      }, 100);
+      }, 300);
     } catch (err) {
       setError((err as Error).message || 'An error occurred');
     } finally {
