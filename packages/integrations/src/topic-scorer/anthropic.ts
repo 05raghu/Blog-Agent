@@ -5,6 +5,7 @@ import {
   TopicScorerProvider,
   TopicScoringParams,
   LLMTopicScoreResult,
+  computeWeightedScore,
 } from './index';
 
 export class AnthropicTopicScorer implements TopicScorerProvider {
@@ -125,7 +126,7 @@ Return ONLY valid JSON (no markdown):
   }
 
   private buildScoringPrompt(params: TopicScoringParams): string {
-    const { topic, strategy, searchDemand } = params;
+    const { topic, strategy, searchDemand, trendEvidence } = params;
 
     let demandSection = '';
     if (searchDemand && searchDemand.estimatedMonthlySearches !== undefined) {
@@ -140,6 +141,21 @@ Trending: ${searchDemand.trending ? 'Yes' : 'No'}
 
 Use this real market data to inform your "AVAILABLE EVIDENCE & DEMAND" score.
 Higher search volume = stronger evidence of real demand.`;
+    }
+
+    let trendSection = '';
+    if (trendEvidence) {
+      trendSection = `
+TREND EVIDENCE (real-time cross-platform search signal):
+${trendEvidence.reasoning}
+LinkedIn posts found: ${trendEvidence.linkedinPostCount}
+Recent news articles (last 60 days): ${trendEvidence.recentArticleCount}
+Web articles/blog posts found: ${trendEvidence.webArticleCount}
+Top sources covering this topic: ${trendEvidence.topSources.join(', ') || 'none found'}
+Currently trending: ${trendEvidence.isTrending ? 'Yes' : 'No'}
+
+Use this evidence to justify your "AVAILABLE EVIDENCE & DEMAND" and "SEARCH/CONTENT GAP" scores.
+Cite the specific counts/sources in your reasoning text (e.g. "15+ LinkedIn posts and 8 recent articles indicate strong current momentum") rather than giving a generic justification.`;
     }
 
     return `TOPIC TO SCORE:
@@ -160,6 +176,7 @@ Content Mix: ${Object.entries(strategy.contentMix)
       .map(([k, v]) => `${k} ${Math.round(v * 100)}%`)
       .join(', ')}
 ${demandSection}
+${trendSection}
 
 SCORE THIS TOPIC on all 7 dimensions. Return ONLY valid JSON.`;
   }
@@ -175,18 +192,23 @@ SCORE THIS TOPIC on all 7 dimensions. Return ONLY valid JSON.`;
 
       const confidence = this.calculateConfidence(parsed);
 
+      const breakdown = {
+        strategicRelevance: parsed.breakdown.strategicRelevance,
+        audienceIcpUsefulness: parsed.breakdown.audienceIcpUsefulness,
+        availableEvidenceAndDemand: parsed.breakdown.availableEvidenceAndDemand,
+        differentiatedAngle: parsed.breakdown.differentiatedAngle,
+        smeFit: parsed.breakdown.smeFit,
+        searchContentGap: parsed.breakdown.searchContentGap,
+        conversionDistributionPotential: parsed.breakdown.conversionDistributionPotential,
+      };
+
+      // totalScore is always computed from the weighted rubric — never trusted
+      // from the LLM's self-reported number, which is not reliably consistent
+      // with the stated weights (25/15/15/15/10/10/10).
       return {
-        totalScore: Math.round(parsed.totalScore),
+        totalScore: computeWeightedScore(breakdown),
         confidence,
-        breakdown: {
-          strategicRelevance: parsed.breakdown.strategicRelevance,
-          audienceIcpUsefulness: parsed.breakdown.audienceIcpUsefulness,
-          availableEvidenceAndDemand: parsed.breakdown.availableEvidenceAndDemand,
-          differentiatedAngle: parsed.breakdown.differentiatedAngle,
-          smeFit: parsed.breakdown.smeFit,
-          searchContentGap: parsed.breakdown.searchContentGap,
-          conversionDistributionPotential: parsed.breakdown.conversionDistributionPotential,
-        },
+        breakdown,
         overallRecommendation: parsed.overallRecommendation,
       };
     } catch (error) {

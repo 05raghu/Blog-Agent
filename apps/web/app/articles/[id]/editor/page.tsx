@@ -48,6 +48,8 @@ interface Article {
   generatedCTAs?: CTA[]; // List of generated CTA suggestions
   selectedImage?: GeneratedImage; // Selected hero image
   generatedImages?: GeneratedImage[]; // List of generated images
+  sourceContent?: string | null; // Raw text of an uploaded draft this article was derived from
+  sourceFilename?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -653,6 +655,7 @@ export default function ArticleEditorPage() {
           brief,
           title: article?.title,
           targetAudience: audience || undefined,
+          sourceContent: article?.sourceContent || undefined,
         }),
       });
 
@@ -702,6 +705,7 @@ export default function ArticleEditorPage() {
         briefingInsights: article?.briefingInsights || undefined,
         feedback: feedbackForRegen,
         currentContent: content,
+        sourceContent: article?.sourceContent || undefined,
       };
 
       console.log('[Draft] Request payload:', payload);
@@ -882,6 +886,11 @@ export default function ArticleEditorPage() {
               </Link>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">{article.title}</h1>
               <p className="text-slate-600">Content ID: {article.contentId}</p>
+              {article.sourceContent && (
+                <span className="inline-block mt-2 px-3 py-1 bg-amber-100 text-amber-800 rounded text-xs font-medium">
+                  📄 Derived from: {article.sourceFilename || 'uploaded document'} — content, outline, and draft generation adapt this source rather than inventing new material
+                </span>
+              )}
             </div>
             {/* Save Status Indicator */}
             {saveStatus && (

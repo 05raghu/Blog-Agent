@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/workspace-context';
 import { extractInsights } from '@/lib/briefing-insights';
@@ -20,7 +20,20 @@ interface Topic {
   audience?: string;
   score: number;
   confidence: number;
-  source?: 'ai' | 'manual';
+  source?: 'ai' | 'manual' | 'document';
+  sourceFilename?: string;
+  sourceContent?: string;
+  trendEvidence?: {
+    linkedinPostCount: number;
+    recentArticleCount: number;
+    webArticleCount: number;
+    topSources: string[];
+    isTrending: boolean;
+    reasoning: string;
+    linkedinPostLinks?: Array<{ title: string; link: string }>;
+    webArticleLinks?: Array<{ title: string; link: string }>;
+    newsArticleLinks?: Array<{ title: string; link: string; date: string; source: string }>;
+  } | null;
   assignedSmeId?: string;
   assignedSmeName?: string;
   breakdown: {
@@ -36,6 +49,132 @@ interface Topic {
   recommendedSmes: Array<{ name: string; fitScore: number; reason: string }>;
   missingInputs: string[];
   createdAt: string;
+}
+
+// Click-to-open eye icon that shows the actual source links behind a trend-evidence
+// count (e.g. "10+ LinkedIn posts") — so the evidence is verifiable, not just a number.
+// Click-to-open (not hover) is used deliberately: a hover-only popover closes the
+// instant the cursor leaves the icon on the way to a link, making the links
+// effectively unclickable. Click-to-open stays open until dismissed, so links work.
+function TrendEvidenceSourcesIcon({ trendEvidence }: { trendEvidence: Topic['trendEvidence'] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen]);
+
+  if (!trendEvidence) return null;
+
+  const linkedinLinks = trendEvidence.linkedinPostLinks || [];
+  const webLinks = trendEvidence.webArticleLinks || [];
+  const newsLinks = trendEvidence.newsArticleLinks || [];
+  const hasLinks = linkedinLinks.length > 0 || webLinks.length > 0 || newsLinks.length > 0;
+
+  if (!hasLinks) return null;
+
+  return (
+    <span ref={containerRef} className="relative inline-block ml-1 align-middle" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`cursor-pointer ${isOpen ? 'text-blue-600' : 'text-slate-400 hover:text-blue-600'}`}
+        title="View sources"
+        aria-expanded={isOpen}
+      >
+        👁️
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 left-0 top-full mt-1 w-72 max-h-80 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-xl p-3 text-left">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-semibold text-slate-900">Evidence Sources</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-slate-400 hover:text-slate-700 text-sm leading-none"
+              title="Close"
+            >
+              ✕
+            </button>
+          </div>
+          {linkedinLinks.length > 0 && (
+            <div className="mb-3 last:mb-0">
+              <div className="text-xs font-semibold text-slate-900 mb-1">LinkedIn Post Links ({linkedinLinks.length})</div>
+              <ul className="space-y-1">
+                {linkedinLinks.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline block truncate"
+                    >
+                      {l.title || l.link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {webLinks.length > 0 && (
+            <div className="mb-3 last:mb-0">
+              <div className="text-xs font-semibold text-slate-900 mb-1">Web Article Links ({webLinks.length})</div>
+              <ul className="space-y-1">
+                {webLinks.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline block truncate"
+                    >
+                      {l.title || l.link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {newsLinks.length > 0 && (
+            <div className="mb-3 last:mb-0">
+              <div className="text-xs font-semibold text-slate-900 mb-1">News Article Links ({newsLinks.length})</div>
+              <ul className="space-y-1">
+                {newsLinks.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline block truncate"
+                    >
+                      {l.title || l.link}
+                    </a>
+                    <span className="text-xs text-slate-400">{l.source}{l.date ? ` — ${l.date}` : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
 }
 
 function TopicsContent() {
@@ -61,9 +200,11 @@ function TopicsContent() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creatingTopic, setCreatingTopic] = useState(false);
-  const [createMode, setCreateMode] = useState<'manual' | 'bulk'>('manual');
+  const [createMode, setCreateMode] = useState<'manual' | 'bulk' | 'document'>('manual');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [docUploadFile, setDocUploadFile] = useState<File | null>(null);
+  const [docUploadProgress, setDocUploadProgress] = useState<string>('');
   const [formData, setFormData] = useState({
     title: '',
     summary: '',
@@ -348,6 +489,12 @@ function TopicsContent() {
         return;
       }
 
+      if (!formData.angle.trim() || !formData.targetOffering.trim() || !formData.geography.trim() || !formData.audience.trim()) {
+        setError('Angle, Target Offering, Geography, and Audience are required for accurate scoring');
+        setCreatingTopic(false);
+        return;
+      }
+
       const response = await fetch('/api/strategy/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -527,6 +674,66 @@ function TopicsContent() {
     }
   };
 
+  // Upload a PDF/DOCX/TXT/MD draft — extracts its text and creates a topic
+  // grounded in that document's actual content (source_content is persisted
+  // on the topic so the article generated from it can derive from the draft).
+  const handleDocumentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docUploadFile || !strategyId || !strategyData) return;
+
+    try {
+      setCreatingTopic(true);
+      setError('');
+      setDocUploadProgress('Extracting document text...');
+
+      const form = new FormData();
+      form.append('file', docUploadFile);
+      form.append('strategyId', strategyId);
+      form.append('strategy', JSON.stringify({
+        offerings: strategyData.offerings,
+        targetIcps: strategyData.targetIcps,
+        geographies: strategyData.geographies,
+        competitors: strategyData.competitors,
+        contentMix: strategyData.contentMix,
+      }));
+
+      setDocUploadProgress('Analyzing document and generating topic...');
+
+      const response = await fetch('/api/strategy/topics/upload-document', {
+        method: 'POST',
+        body: form,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to create topic from document');
+      }
+
+      const data = await response.json();
+
+      setTopics((prev) => {
+        const topicWithStrategy = {
+          ...data.topic,
+          strategyId: strategyId,
+          source: 'document' as const,
+        };
+        const updated = [topicWithStrategy, ...prev].sort((a, b) => b.score - a.score);
+        localStorage.setItem('topics', JSON.stringify(updated));
+        return updated;
+      });
+
+      setSuccess(`✓ Topic created from "${docUploadFile.name}"`);
+      setDocUploadFile(null);
+      setDocUploadProgress('');
+      setShowCreateForm(false);
+    } catch (err) {
+      setError((err as Error).message);
+      setDocUploadProgress('');
+    } finally {
+      setCreatingTopic(false);
+    }
+  };
+
   const handleGenerateTopics = async () => {
     if (!strategyId) return;
 
@@ -589,7 +796,7 @@ function TopicsContent() {
 
       let brief = topic.summary;
 
-      // If topic doesn't have a summary, generate one from title
+      // If topic doesn't have a summary, generate one from title (or from the source document, if this topic came from an upload)
       if (!brief || brief.trim() === '') {
         const briefResponse = await fetch('/api/articles/generate-brief', {
           method: 'POST',
@@ -598,6 +805,7 @@ function TopicsContent() {
             title: topic.title,
             angle: topic.angle,
             targetOffering: topic.targetOffering,
+            sourceContent: topic.sourceContent,
           }),
         });
 
@@ -666,6 +874,8 @@ function TopicsContent() {
           assignedSmeName: topic.assignedSmeName || null,
           briefingSessionId,
           briefingInsights: briefingInsights.positions?.length > 0 ? briefingInsights : null,
+          sourceContent: topic.sourceContent || null,
+          sourceFilename: topic.sourceFilename || null,
         }),
       });
 
@@ -702,6 +912,11 @@ function TopicsContent() {
 
     try {
       setError('');
+
+      if (!editFormData.title.trim() || !editFormData.angle.trim() || !editFormData.targetOffering.trim() || !editFormData.geography.trim() || !editFormData.audience.trim()) {
+        setError('Title, Angle, Target Offering, Geography, and Audience are required for accurate scoring');
+        return;
+      }
 
       // Call API to edit and recalculate score (SERVER-SIDE)
       const response = await fetch('/api/strategy/topics/edit', {
@@ -900,6 +1115,16 @@ function TopicsContent() {
                 >
                   📤 Bulk Upload
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('document')}
+                  className={`px-4 py-2 rounded font-medium text-sm transition ${createMode === 'document'
+                    ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  📄 Upload Document
+                </button>
               </div>
 
               {/* Manual Entry Mode */}
@@ -933,9 +1158,10 @@ function TopicsContent() {
                   {/* Grid: Angle, Offering, Format */}
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-900 mb-1">Angle</label>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Angle *</label>
                       <input
                         type="text"
+                        required
                         value={formData.angle}
                         onChange={(e) => setFormData({ ...formData, angle: e.target.value })}
                         placeholder="e.g., Best practices, vs comparison"
@@ -944,8 +1170,9 @@ function TopicsContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering</label>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering *</label>
                       <select
+                        required
                         value={formData.targetOffering}
                         onChange={(e) => setFormData({ ...formData, targetOffering: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -960,8 +1187,9 @@ function TopicsContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-900 mb-1">Format</label>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Format *</label>
                       <select
+                        required
                         value={formData.format}
                         onChange={(e) => setFormData({ ...formData, format: e.target.value as any })}
                         className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -977,9 +1205,10 @@ function TopicsContent() {
                   {/* Grid: Geography, Audience */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-900 mb-1">Geography</label>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Geography *</label>
                       <input
                         type="text"
+                        required
                         value={formData.geography}
                         onChange={(e) => setFormData({ ...formData, geography: e.target.value })}
                         placeholder="e.g., North America, Global"
@@ -988,9 +1217,10 @@ function TopicsContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-900 mb-1">Audience</label>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">Audience *</label>
                       <input
                         type="text"
+                        required
                         value={formData.audience}
                         onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
                         placeholder="e.g., Engineering leaders, CTOs"
@@ -1089,6 +1319,63 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   </details>
                 </form>
               )}
+
+              {/* Document Upload Mode */}
+              {createMode === 'document' && (
+                <form onSubmit={handleDocumentUpload} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">Upload Draft Document</label>
+                    <p className="text-xs text-slate-600 mb-3">
+                      📄 Upload an existing draft (PDF, DOCX, TXT, or MD). The system extracts its text, creates a topic that accurately reflects the document, and — when you create an article from this topic — the final blog article will be adapted from this document's actual content rather than written from scratch.
+                    </p>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition">
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.txt,.md"
+                        onChange={(e) => setDocUploadFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                        id="document-file"
+                      />
+                      <label htmlFor="document-file" className="cursor-pointer block">
+                        {docUploadFile ? (
+                          <div>
+                            <p className="text-sm font-medium text-blue-600">✓ {docUploadFile.name}</p>
+                            <p className="text-xs text-slate-600 mt-1">Click to change file</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">📄 Click to select a draft or drag and drop</p>
+                            <p className="text-xs text-slate-600 mt-1">PDF, DOCX, TXT, or MD supported</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  {docUploadProgress && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-sm text-blue-900">{docUploadProgress}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="submit"
+                      disabled={!docUploadFile || creatingTopic}
+                      className="btn-primary flex items-center gap-2 flex-1 justify-center"
+                    >
+                      {creatingTopic ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          {docUploadProgress || 'Processing...'}
+                        </>
+                      ) : (
+                        '📄 Create Topic from Document'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </div>
@@ -1176,15 +1463,18 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                         <span className="inline-block px-3 py-1 bg-slate-100 rounded text-xs font-medium text-slate-700">
                           {topic.format}
                         </span>
-                        <span className={`inline-block px-3 py-1 rounded text-xs font-medium ${topic.source === 'ai'
-                          ? 'bg-purple-100 text-purple-700'
-                          : topic.source === 'manual'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
+                        <span className={`inline-block px-3 py-1 rounded text-xs font-medium ${topic.sourceFilename || topic.source === 'document'
+                          ? 'bg-amber-100 text-amber-800'
+                          : topic.source === 'ai'
+                            ? 'bg-purple-100 text-purple-700'
+                            : topic.source === 'manual'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-700'
                           }`}>
-                          {topic.source === 'ai' && '✨ AI Generated'}
-                          {topic.source === 'manual' && '✋ Manual'}
-                          {!topic.source && '📝 Unknown'}
+                          {(topic.sourceFilename || topic.source === 'document') && `📄 From Document${topic.sourceFilename ? `: ${topic.sourceFilename}` : ''}`}
+                          {!topic.sourceFilename && topic.source !== 'document' && topic.source === 'ai' && '✨ AI Generated'}
+                          {!topic.sourceFilename && topic.source !== 'document' && topic.source === 'manual' && '✋ Manual'}
+                          {!topic.sourceFilename && !topic.source && '📝 Unknown'}
                         </span>
                       </div>
                     </div>
@@ -1215,7 +1505,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.availableEvidenceAndDemand?.score || 0}</div>
-                      <div className="text-slate-600 text-xs">Evidence &<br />Demand</div>
+                      <div className="text-slate-600 text-xs">
+                        Evidence &<br />Demand
+                        <TrendEvidenceSourcesIcon trendEvidence={topic.trendEvidence} />
+                      </div>
                       <div className="text-slate-500 text-xs mt-1">{topic.breakdown.availableEvidenceAndDemand?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
@@ -1230,7 +1523,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
                       <div className="font-bold text-ink-950">{topic.breakdown.searchContentGap?.score || 0}</div>
-                      <div className="text-slate-600 text-xs">Search<br />Gap</div>
+                      <div className="text-slate-600 text-xs">
+                        Search<br />Gap
+                        <TrendEvidenceSourcesIcon trendEvidence={topic.trendEvidence} />
+                      </div>
                       <div className="text-slate-500 text-xs mt-1">{topic.breakdown.searchContentGap?.evidence || 'N/A'}</div>
                     </div>
                     <div className="bg-slate-50 rounded p-2 border border-slate-200 hover:bg-blue-50">
@@ -1257,6 +1553,31 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                       </div>
                     )}
                   </div>
+
+                  {/* Trend Evidence */}
+                  {topic.trendEvidence && (
+                    <div className={`mt-2 rounded p-3 border ${topic.trendEvidence.isTrending
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : 'bg-slate-50 border-slate-200'
+                      }`}>
+                      <div className={`text-xs font-semibold mb-2 ${topic.trendEvidence.isTrending ? 'text-emerald-900' : 'text-slate-700'
+                        }`}>
+                        📈 Trend Evidence for &quot;{topic.title}&quot;
+                      </div>
+                      <ul className={`text-xs space-y-1 ${topic.trendEvidence.isTrending ? 'text-emerald-800' : 'text-slate-600'
+                        }`}>
+                        <li>• {topic.trendEvidence.linkedinPostCount}+ LinkedIn posts found discussing this topic</li>
+                        <li>• {topic.trendEvidence.recentArticleCount} news articles published in the last 60 days</li>
+                        <li>• {topic.trendEvidence.webArticleCount}+ web articles/blog posts found discussing this topic</li>
+                        {topic.trendEvidence.topSources.length > 0 && (
+                          <li>• Top sources: {topic.trendEvidence.topSources.join(', ')}</li>
+                        )}
+                        <li className="font-medium">
+                          • Verdict: {topic.trendEvidence.isTrending ? 'Currently trending' : 'Steady / niche interest'}
+                        </li>
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Cannibalization Risk */}
                   {topic.cannibalizationRisk?.exists && (
@@ -1399,9 +1720,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                 {/* Grid: Angle, Offering, Format */}
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">Angle</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Angle *</label>
                     <input
                       type="text"
+                      required
                       value={editFormData.angle}
                       onChange={(e) => setEditFormData({ ...editFormData, angle: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -1409,8 +1731,9 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Target Offering *</label>
                     <select
+                      required
                       value={editFormData.targetOffering}
                       onChange={(e) => setEditFormData({ ...editFormData, targetOffering: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -1425,8 +1748,9 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">Format</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Format *</label>
                     <select
+                      required
                       value={editFormData.format}
                       onChange={(e) => setEditFormData({ ...editFormData, format: e.target.value as any })}
                       className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -1442,9 +1766,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                 {/* Grid: Geography, Audience */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">Geography</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Geography *</label>
                     <input
                       type="text"
+                      required
                       value={editFormData.geography}
                       onChange={(e) => setEditFormData({ ...editFormData, geography: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
@@ -1452,9 +1777,10 @@ API Security Best Practices,Secure your APIs,Advanced,Security,guide,North Ameri
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">Audience</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">Audience *</label>
                     <input
                       type="text"
+                      required
                       value={editFormData.audience}
                       onChange={(e) => setEditFormData({ ...editFormData, audience: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded text-sm"

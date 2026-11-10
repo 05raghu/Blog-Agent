@@ -24,6 +24,14 @@ export interface TopicScoringParams {
     trending: boolean;
     confidence: number;
   };
+  trendEvidence?: {
+    linkedinPostCount: number;
+    recentArticleCount: number;
+    webArticleCount: number;
+    topSources: string[];
+    isTrending: boolean;
+    reasoning: string;
+  };
 }
 
 export interface DimensionScore {
@@ -50,6 +58,30 @@ export interface LLMTopicScoreResult {
 
 export interface TopicScorerProvider {
   scoreTopic(params: TopicScoringParams): Promise<LLMTopicScoreResult>;
+}
+
+// Fixed V1 opportunity rubric weights (see BLOG_AGENT_PRD.md §7 P0.1).
+// totalScore must always be computed from these — never trusted as a
+// free-text number from the LLM, since LLMs do not reliably self-compute
+// a weighted average consistent with the weights they were given.
+export const DIMENSION_WEIGHTS: Record<keyof LLMTopicScoreResult['breakdown'], number> = {
+  strategicRelevance: 0.25,
+  audienceIcpUsefulness: 0.15,
+  availableEvidenceAndDemand: 0.15,
+  differentiatedAngle: 0.15,
+  smeFit: 0.10,
+  searchContentGap: 0.10,
+  conversionDistributionPotential: 0.10,
+};
+
+export function computeWeightedScore(breakdown: LLMTopicScoreResult['breakdown']): number {
+  let total = 0;
+  for (const key of Object.keys(DIMENSION_WEIGHTS) as Array<keyof typeof DIMENSION_WEIGHTS>) {
+    const dimension = breakdown[key];
+    const score = typeof dimension?.score === 'number' ? dimension.score : 0;
+    total += score * DIMENSION_WEIGHTS[key];
+  }
+  return Math.round(total);
 }
 
 export { AnthropicTopicScorer } from './anthropic';

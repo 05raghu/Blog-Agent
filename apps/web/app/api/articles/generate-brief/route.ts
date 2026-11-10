@@ -6,7 +6,7 @@ import { getTextModelProvider } from '@/lib/text-model';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, angle, targetOffering, targetAudience } = await request.json();
+    const { title, angle, targetOffering, targetAudience, sourceContent } = await request.json();
 
     if (!title) {
       return NextResponse.json(
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       angle,
       targetOffering,
       targetAudience,
+      sourceContent,
     });
 
     return NextResponse.json({

@@ -14,17 +14,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const strategyId = request.nextUrl.searchParams.get('strategyId') || request.nextUrl.searchParams.get('id');
+
     const supabase = createServerClient();
-    const { data: strategies, error } = await supabase
+    let query = supabase
       .from('strategy_versions')
       .select('*')
       .eq('workspace_id', workspace.workspaceId);
+
+    if (strategyId) {
+      query = query.eq('id', strategyId);
+    }
+
+    const { data: strategies, error } = await query;
 
     if (error) {
       console.error('[API] Strategy fetch error:', error);
       return NextResponse.json(
         { error: 'Failed to fetch strategies' },
         { status: 500 }
+      );
+    }
+
+    if (strategyId && (!strategies || strategies.length === 0)) {
+      return NextResponse.json(
+        { error: 'Strategy not found' },
+        { status: 404 }
       );
     }
 

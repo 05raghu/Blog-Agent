@@ -1,7 +1,7 @@
 // Live OpenAI TextModel implementation — uses GPT-4 API for generation
 
 import OpenAI from 'openai';
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams, TopicFromDocumentParams } from './index';
 import { buildBrandSystemPrompt } from '../image-model/brand-guide';
 
 export class OpenAITextModel implements TextModelProvider {
@@ -13,9 +13,30 @@ export class OpenAITextModel implements TextModelProvider {
   }
 
   async generateBrief(params: BriefParams): Promise<string> {
-    const systemPrompt = `You are an expert content strategist. Generate a concise, compelling brief (2-3 sentences) for an article.`;
+    const systemPrompt = params.sourceContent
+      ? `You are an expert content strategist. You are given a source document (an existing draft) and must write a brief that accurately summarizes what THAT document actually argues — do not invent a different angle or value proposition than what's in the source.`
+      : `You are an expert content strategist. Generate a concise, compelling brief (2-3 sentences) for an article.`;
 
-    const userPrompt = `Generate a brief for an article with this title:
+    const userPrompt = params.sourceContent
+      ? `Generate a brief for an article with this title, based STRICTLY on the source document below. Do not introduce ideas, claims, or examples that are not present in the source.
+
+Title: "${params.title}"
+${params.angle ? `Angle: ${params.angle}` : ''}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+SOURCE DOCUMENT (the brief must represent this content, not invent new content):
+"""
+${params.sourceContent.substring(0, 12000)}
+"""
+
+The brief should:
+- Accurately capture the source document's actual core argument/thesis
+- Be clear and actionable
+- Hook the reader's interest
+- Be suitable for B2B/SaaS audience
+
+Write just the brief, no additional text:`
+      : `Generate a brief for an article with this title:
 
 Title: "${params.title}"
 ${params.angle ? `Angle: ${params.angle}` : ''}
@@ -49,9 +70,30 @@ Write just the brief, no additional text:`;
   }
 
   async generateOutline(params: OutlineParams): Promise<string> {
-    const systemPrompt = `You are an expert content strategist. Generate a detailed outline for an article.`;
+    const systemPrompt = params.sourceContent
+      ? `You are an expert content strategist. You are given a source document (an existing draft) and must structure its actual content into a blog outline — preserve its real sections, examples, and arguments. Do not invent sections or examples that are not present in the source.`
+      : `You are an expert content strategist. Generate a detailed outline for an article.`;
 
-    const userPrompt = `Generate an outline for an article based on the brief provided.
+    const userPrompt = params.sourceContent
+      ? `Generate an outline for an article based STRICTLY on the source document below. The outline must organize the source's actual content for blog readability — do not introduce new sections, examples, or arguments that are not present in the source.
+
+Article Title: ${params.title}
+Brief: ${params.brief}
+${params.targetAudience ? `Target Audience: ${params.targetAudience}` : ''}
+
+SOURCE DOCUMENT (the outline must organize this content):
+"""
+${params.sourceContent.substring(0, 12000)}
+"""
+
+Create a comprehensive outline with:
+- Clear section headings (use ## markdown format) that reflect the source's actual structure/arguments
+- One outline section per distinct point/example already present in the source
+- 2-3 bullet points under each section summarizing what that part of the source covers
+- Use the source's own examples and case studies — do not substitute generic ones
+
+Format the response as a markdown outline that can be used to write the article.`
+      : `Generate an outline for an article based on the brief provided.
 
 Article Title: ${params.title}
 Brief: ${params.brief}
@@ -84,7 +126,19 @@ Format the response as a markdown outline that can be used to write the article.
   }
 
   async generateDraft(params: DraftParams): Promise<string> {
-    const systemPrompt = `You are an expert content strategist and writer for B2B technology companies.
+    const systemPrompt = params.sourceContent
+      ? `You are an expert content editor adapting an existing source document into a polished, publish-ready blog article.
+
+${params.voiceProfile ? `Brand Voice Guidelines:\n${params.voiceProfile}\n` : ''}
+
+CRITICAL RULES:
+- You are ADAPTING the source document below, not writing a new article from scratch
+- Preserve the source's actual arguments, examples, case studies, and point of view
+- Do NOT invent new examples, statistics, or claims that are not present in the source
+- You MAY restructure, tighten prose, improve transitions, and format for blog readability (headings, short paragraphs)
+- If the source has a named author/voice, preserve that perspective faithfully
+- Target length: ${params.targetLength || 2000} words — condense or expand the source's own content to fit, without adding invented material`
+      : `You are an expert content strategist and writer for B2B technology companies.
 Your task is to generate compelling, evidence-backed blog articles grounded in real expertise.
 
 ${params.voiceProfile ? `Brand Voice Guidelines:\n${params.voiceProfile}\n` : ''}
@@ -169,6 +223,22 @@ Instructions for regeneration:
 7. Keep the SME insights and voice guidelines in mind
 
 Generate the improved article incorporating the feedback.`;
+    } else if (params.sourceContent) {
+      // Adapt an uploaded source document into a blog article
+      userPrompt = `Adapt the source document below into a complete, publish-ready blog article.
+
+Title: ${params.title}
+Brief: ${params.brief}
+
+OUTLINE (organizes the source's own content):
+${params.outline}
+${insightsSection}
+SOURCE DOCUMENT (adapt this content — do not invent new material):
+"""
+${params.sourceContent.substring(0, 12000)}
+"""
+
+Write the complete blog article by restructuring and polishing the source document's actual content for blog readability. Preserve its real examples, arguments, and voice. Do not add examples or claims that are not present in the source.`;
     } else {
       // Initial draft generation
       userPrompt = `Generate a blog article based on this brief and outline:
@@ -588,6 +658,69 @@ Respond with the JSON array only.`;
       : [];
 
     return candidates;
+  }
+
+  async generateTopicFromDocument(params: TopicFromDocumentParams): Promise<GeneratedTopicCandidate> {
+    const { documentText, strategy } = params;
+
+    const systemPrompt = `You are a B2B content strategist. You are given an existing document/draft and must describe it as a topic candidate — do NOT invent a different topic, only accurately describe what this document actually covers.
+
+You MUST respond with valid JSON in this exact format:
+{
+  "title": "<string, the document's actual title or a faithful title for its content>",
+  "summary": "<2-3 sentence string, accurately summarizing what the document argues>",
+  "angle": "<string, the document's actual unique angle or perspective>",
+  "targetOffering": "<string, ideally one of the provided offerings if genuinely relevant>",
+  "format": "blog|guide|case_study|whitepaper",
+  "geography": "<string, if inferable, else 'Global'>",
+  "audience": "<string, the document's actual target reader/persona>"
+}`;
+
+    const userPrompt = `Describe this document as a topic candidate. Base every field on what the document ACTUALLY says — do not invent content.
+
+DOCUMENT:
+"""
+${documentText.substring(0, 12000)}
+"""
+
+COMPANY STRATEGY (for context only — do not force-fit the document to this if it doesn't genuinely match):
+Offerings: ${strategy.offerings?.join(', ') || 'none specified'}
+Target ICPs: ${strategy.targetIcps?.join(', ') || 'none specified'}
+Geographies: ${strategy.geographies?.join(', ') || 'none specified'}
+
+Respond with the JSON object only.`;
+
+    const message = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 800,
+    });
+
+    const content = message.choices[0].message.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in topic-from-document response');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    return {
+      title: parsed.title || 'Untitled Document',
+      summary: parsed.summary || '',
+      angle: parsed.angle || undefined,
+      targetOffering: parsed.targetOffering || undefined,
+      format: ['blog', 'guide', 'case_study', 'whitepaper'].includes(parsed.format) ? parsed.format : 'blog',
+      geography: parsed.geography || undefined,
+      audience: parsed.audience || undefined,
+    };
   }
 
   async craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string> {

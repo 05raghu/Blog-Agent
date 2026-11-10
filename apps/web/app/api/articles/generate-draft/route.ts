@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, brief, outline, targetAudience, briefingInsights, feedback: feedbackParam, currentContent } = await request.json();
+    const { title, brief, outline, targetAudience, briefingInsights, feedback: feedbackParam, currentContent, sourceContent } = await request.json();
 
     if (!title || !brief || !outline) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       briefingInsights,
       reviewerFeedback: feedbackParam,
       currentContent,
+      sourceContent,
     });
 
     return NextResponse.json({

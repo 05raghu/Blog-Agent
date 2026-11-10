@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, briefingSessionId, briefingInsights } = body;
+    const { topicId, strategyId, title, brief, outline, assignedSmeId, assignedSmeName, briefingSessionId, briefingInsights, sourceContent, sourceFilename } = body;
 
     if (!topicId || !strategyId) {
       return NextResponse.json(
@@ -75,6 +75,8 @@ export async function POST(request: NextRequest) {
         content: '',
         angle: '',
         target_audience: '',
+        source_content: sourceContent || null,
+        source_filename: sourceFilename || null,
       })
       .select()
       .single();
@@ -119,6 +121,7 @@ export async function GET(request: NextRequest) {
 
     const strategyId = request.nextUrl.searchParams.get('strategyId');
     const articleId = request.nextUrl.searchParams.get('id');
+    const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '10'), 100);
 
     const supabase = createServerClient();
 
@@ -183,18 +186,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (!strategyId) {
-      return NextResponse.json({ error: 'strategyId or id is required' }, { status: 400 });
-    }
-
-    // Get all articles for strategy (max 5 concurrent)
-    const { data: articles, error } = await supabase
+    // Get articles - either by strategy or all from workspace
+    let query = supabase
       .from('articles')
       .select('*')
-      .eq('workspace_id', workspace.workspaceId)
-      .eq('strategy_id', strategyId)
+      .eq('workspace_id', workspace.workspaceId);
+
+    if (strategyId) {
+      query = query.eq('strategy_id', strategyId);
+    }
+
+    const { data: articles, error } = await query
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(limit);
 
     if (error) {
       console.error('[API] Articles fetch error:', error);
@@ -218,7 +222,7 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({
-      strategyId,
+      strategyId: strategyId || null,
       count: articles?.length || 0,
       articles: (articles || []).map((a: any) => ({
         id: a.id,

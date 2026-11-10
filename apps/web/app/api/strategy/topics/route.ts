@@ -6,6 +6,7 @@ import { generateTopicId } from '@/lib/topic-store';
 import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 import { getTopicScorerProvider } from '@/lib/topic-scorer';
 import { getSearchDemandProvider } from '@/lib/search-demand';
+import { buildTrendEvidence } from '@/lib/trend-evidence';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,12 +71,21 @@ export async function POST(request: NextRequest) {
           // Continue without demand data
         }
 
+        // Get real-time trend evidence (LinkedIn posts, recent articles, top sources)
+        let trendEvidence = null;
+        try {
+          trendEvidence = await buildTrendEvidence(topic.title);
+        } catch (trendErr) {
+          console.warn('[API] Failed to get trend evidence:', trendErr);
+        }
+
         // Score the topic using LLM with market demand data
         console.log('[API] Auto-scoring topic with LLM:', topic.title.substring(0, 50));
         const llmScore = await scorer.scoreTopic({
           topic,
           strategy: normalizedStrategy,
           searchDemand: searchDemand || undefined,
+          trendEvidence: trendEvidence || undefined,
         });
 
         // Generate ID for topic
@@ -126,6 +136,7 @@ export async function POST(request: NextRequest) {
           cannibalizationRisk: { exists: false },
           recommendedSmes: [],
           missingInputs: [],
+          trendEvidence,
           createdAt: new Date().toISOString(),
           llmScoringData: llmScore, // Store full LLM breakdown
         };
@@ -151,6 +162,8 @@ export async function POST(request: NextRequest) {
             cannibalization_risk: scoredTopic.cannibalizationRisk,
             recommended_smes: scoredTopic.recommendedSmes,
             missing_inputs: scoredTopic.missingInputs,
+            trend_evidence: scoredTopic.trendEvidence,
+            source: 'manual',
           });
 
         if (insertError) {
@@ -230,10 +243,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const mappedTopics = (topics || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      summary: t.summary || '',
+      angle: t.angle,
+      format: t.format || 'blog',
+      geography: t.geography,
+      audience: t.audience,
+      targetOffering: t.target_offering,
+      score: t.score,
+      confidence: t.confidence,
+      breakdown: t.breakdown,
+      cannibalizationRisk: t.cannibalization_risk,
+      recommendedSmes: t.recommended_smes,
+      missingInputs: t.missing_inputs,
+      sourceContent: t.source_content,
+      sourceFilename: t.source_filename,
+      trendEvidence: t.trend_evidence,
+      source: t.source || 'manual',
+      createdAt: t.created_at,
+    }));
+
     return NextResponse.json({
       strategyId,
-      topicCount: topics?.length || 0,
-      topics: topics || [],
+      topicCount: mappedTopics.length,
+      topics: mappedTopics,
     });
   } catch (error) {
     console.error('[API] Topic retrieval error:', error);

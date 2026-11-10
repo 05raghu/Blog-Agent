@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTextModelProvider } from '@/lib/text-model';
 import { getTopicScorerProvider } from '@/lib/topic-scorer';
 import { getSearchDemandProvider } from '@/lib/search-demand';
+import { buildTrendEvidence } from '@/lib/trend-evidence';
 import { generateTopicId } from '@/lib/topic-store';
 import { getWorkspaceContext, createServerClient } from '@/lib/workspace-auth';
 
@@ -84,11 +85,20 @@ export async function POST(request: NextRequest) {
           console.warn('[Generate] GA4 error for topic:', candidate.title, demandErr);
         }
 
+        // Get real-time trend evidence (LinkedIn posts, recent articles, top sources)
+        let trendEvidence = null;
+        try {
+          trendEvidence = await buildTrendEvidence(candidate.title);
+        } catch (trendErr) {
+          console.warn('[Generate] Trend evidence error for topic:', candidate.title, trendErr);
+        }
+
         // Score with LLM
         const llmScore = await scorer.scoreTopic({
           topic: candidate,
           strategy,
           searchDemand: searchDemand || undefined,
+          trendEvidence: trendEvidence || undefined,
         });
 
         scored.push({
@@ -135,6 +145,7 @@ export async function POST(request: NextRequest) {
           cannibalizationRisk: { exists: false },
           recommendedSmes: [],
           missingInputs: [],
+          trendEvidence,
           createdAt: new Date().toISOString(),
         });
       } catch (scoreErr) {
@@ -164,6 +175,8 @@ export async function POST(request: NextRequest) {
           cannibalization_risk: topic.cannibalizationRisk,
           recommended_smes: topic.recommendedSmes,
           missing_inputs: topic.missingInputs,
+          trend_evidence: topic.trendEvidence,
+          source: 'ai',
         }))
       );
 

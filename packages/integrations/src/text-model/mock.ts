@@ -1,9 +1,14 @@
 // Mock TextModel implementation — deterministic responses for testing/demo without API keys
 
-import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams } from './index';
+import { TextModelProvider, BriefParams, OutlineParams, DraftParams, Critique, CritiqueParams, RevisionParams, SEOAnalysisParams, SEOAnalysisResult, LinkSuggestionParams, LinkSuggestion, CTAParams, CTAResult, TopicGenerationParams, GeneratedTopicCandidate, CraftImagePromptParams, TopicFromDocumentParams } from './index';
 
 export class MockTextModel implements TextModelProvider {
   async generateBrief(params: BriefParams): Promise<string> {
+    if (params.sourceContent) {
+      const firstSentences = params.sourceContent.split(/(?<=[.!?])\s+/).slice(0, 3).join(' ');
+      return `[Mock brief derived from source document] ${firstSentences}`;
+    }
+
     const titles = params.title.split(' ');
     const keyword = titles[0];
 
@@ -11,6 +16,15 @@ export class MockTextModel implements TextModelProvider {
   }
 
   async generateOutline(params: OutlineParams): Promise<string> {
+    if (params.sourceContent) {
+      const headingMatches = params.sourceContent.match(/^#{1,3}\s+.+$/gm) || [];
+      if (headingMatches.length > 0) {
+        return `[Mock outline derived from source document headings]\n${headingMatches.map(h => `## ${h.replace(/^#+\s*/, '')}`).join('\n- (content from source)\n')}`;
+      }
+      const paragraphs = params.sourceContent.split(/\n\s*\n/).filter(p => p.trim().length > 40).slice(0, 6);
+      return `[Mock outline derived from source document paragraphs]\n${paragraphs.map((p, i) => `## Section ${i + 1}\n- ${p.substring(0, 80)}...`).join('\n')}`;
+    }
+
     const auditence = params.targetAudience ? `for ${params.targetAudience}` : '';
     return `## Introduction
 - Overview of ${params.title} ${auditence}
@@ -44,6 +58,10 @@ export class MockTextModel implements TextModelProvider {
   }
 
   async generateDraft(params: DraftParams): Promise<string> {
+    if (params.sourceContent) {
+      return `# ${params.title}\n\n[Mock draft adapted from source document — ${params.sourceContent.length} characters of source content]\n\n${params.sourceContent.substring(0, 3000)}`;
+    }
+
     // Simulate draft generation with realistic structure
     const title = params.brief.split('\n')[0] || 'Article Title';
     const wordCount = params.targetLength || 2000;
@@ -456,6 +474,27 @@ Move forward next week:
     }
 
     return results;
+  }
+
+  async generateTopicFromDocument(params: TopicFromDocumentParams): Promise<GeneratedTopicCandidate> {
+    const { documentText, strategy } = params;
+
+    // Try to grab a heading/title-looking first line, else first sentence
+    const lines = documentText.split('\n').map(l => l.trim()).filter(Boolean);
+    const title = (lines[0] || 'Untitled Document').replace(/^#+\s*/, '').substring(0, 120);
+
+    const firstParagraph = documentText.split(/\n\s*\n/).find(p => p.trim().length > 40) || documentText.substring(0, 300);
+    const summary = `[Mock summary derived from document] ${firstParagraph.substring(0, 280)}`;
+
+    return {
+      title,
+      summary,
+      angle: 'Derived from uploaded document',
+      targetOffering: strategy.offerings?.[0],
+      format: 'blog',
+      geography: strategy.geographies?.[0],
+      audience: strategy.targetIcps?.[0],
+    };
   }
 
   async craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string> {

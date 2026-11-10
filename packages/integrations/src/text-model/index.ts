@@ -17,6 +17,7 @@ export interface TextModelProvider {
   generateCTA(params: CTAParams): Promise<CTAResult>;
   generateTopicCandidates(params: TopicGenerationParams): Promise<GeneratedTopicCandidate[]>;
   craftBrandedImagePrompt(params: CraftImagePromptParams): Promise<string>;
+  generateTopicFromDocument(params: TopicFromDocumentParams): Promise<GeneratedTopicCandidate>;
 }
 
 export interface BriefParams {
@@ -24,12 +25,25 @@ export interface BriefParams {
   angle?: string;
   targetOffering?: string;
   targetAudience?: string;
+  sourceContent?: string; // raw text of an uploaded draft/document to derive the brief from
 }
 
 export interface OutlineParams {
   title: string;
   brief: string;
   targetAudience?: string;
+  sourceContent?: string; // raw text of an uploaded draft/document to derive the outline from
+}
+
+export interface TopicFromDocumentParams {
+  documentText: string;
+  strategy: {
+    offerings: string[];
+    targetIcps: string[];
+    geographies: string[];
+    competitors: string[];
+    contentMix: Record<string, number>;
+  };
 }
 
 export interface BriefingInsights {
@@ -57,6 +71,7 @@ export interface DraftParams {
   briefingInsights?: BriefingInsights;
   reviewerFeedback?: FeedbackItem[];
   currentContent?: string;
+  sourceContent?: string; // raw text of an uploaded draft/document to adapt rather than invent from scratch
 }
 
 export interface Critique {

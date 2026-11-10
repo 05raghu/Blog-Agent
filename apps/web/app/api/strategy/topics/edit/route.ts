@@ -106,6 +106,10 @@ export async function PUT(request: NextRequest) {
         cannibalizationRisk: updated.cannibalization_risk,
         recommendedSmes: updated.recommended_smes,
         missingInputs: updated.missing_inputs,
+        source: updated.source,
+        sourceContent: updated.source_content,
+        sourceFilename: updated.source_filename,
+        trendEvidence: updated.trend_evidence,
       },
       message: 'Topic updated and scored successfully',
     });

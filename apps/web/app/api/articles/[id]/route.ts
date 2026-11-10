@@ -67,6 +67,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       generatedCTAs: article.generated_ctas || null,
       selectedImage: article.selected_image || null,
       generatedImages: article.generated_images || [],
+      sourceContent: article.source_content || null,
+      sourceFilename: article.source_filename || null,
       wordCount: article.word_count,
       pausedReason: article.paused_reason,
       blockedReason: article.blocked_reason,

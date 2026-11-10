@@ -5,6 +5,7 @@ import {
   TopicScorerProvider,
   TopicScoringParams,
   LLMTopicScoreResult,
+  computeWeightedScore,
 } from './index';
 
 export class OpenAITopicScorer implements TopicScorerProvider {
@@ -132,7 +133,35 @@ Return ONLY valid JSON (no markdown):
   }
 
   private buildScoringPrompt(params: TopicScoringParams): string {
-    const { topic, strategy } = params;
+    const { topic, strategy, searchDemand, trendEvidence } = params;
+
+    let demandSection = '';
+    if (searchDemand && searchDemand.estimatedMonthlySearches !== undefined) {
+      demandSection = `
+REAL MARKET DATA (from Google):
+Estimated Monthly Searches: ${(searchDemand.estimatedMonthlySearches || 0).toLocaleString()}
+Demand Level: ${searchDemand.demandLevel}
+Search Results: ~${(searchDemand.resultCount || 0).toLocaleString()}
+Trending: ${searchDemand.trending ? 'Yes' : 'No'}
+
+Use this real market data to inform your "AVAILABLE EVIDENCE & DEMAND" score.
+Higher search volume = stronger evidence of real demand.`;
+    }
+
+    let trendSection = '';
+    if (trendEvidence) {
+      trendSection = `
+TREND EVIDENCE (real-time cross-platform search signal):
+${trendEvidence.reasoning}
+LinkedIn posts found: ${trendEvidence.linkedinPostCount}
+Recent news articles (last 60 days): ${trendEvidence.recentArticleCount}
+Web articles/blog posts found: ${trendEvidence.webArticleCount}
+Top sources covering this topic: ${trendEvidence.topSources.join(', ') || 'none found'}
+Currently trending: ${trendEvidence.isTrending ? 'Yes' : 'No'}
+
+Use this evidence to justify your "AVAILABLE EVIDENCE & DEMAND" and "SEARCH/CONTENT GAP" scores.
+Cite the specific counts/sources in your reasoning text (e.g. "15+ LinkedIn posts and 8 recent articles indicate strong current momentum") rather than giving a generic justification.`;
+    }
 
     return `Score this topic:
 
@@ -153,6 +182,8 @@ Competitors: ${strategy.competitors.join(', ')}
 Content Mix: ${Object.entries(strategy.contentMix)
       .map(([k, v]) => `${k} ${Math.round(v * 100)}%`)
       .join(', ')}
+${demandSection}
+${trendSection}
 
 Return JSON with all 7 dimensions scored.`;
   }
@@ -189,25 +220,23 @@ Return JSON with all 7 dimensions scored.`;
         };
       }
 
-      // Calculate total score from breakdown if not provided
-      let totalScore = parsed.totalScore;
-      if (!totalScore && breakdown) {
-        const scores = Object.values(breakdown).map((d: any) => d?.score || 0);
-        totalScore = Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
-      }
+      const normalizedBreakdown = {
+        strategicRelevance: breakdown.strategicRelevance || { score: 0, reasoning: 'N/A' },
+        audienceIcpUsefulness: breakdown.audienceIcpUsefulness || { score: 0, reasoning: 'N/A' },
+        availableEvidenceAndDemand: breakdown.availableEvidenceAndDemand || { score: 0, reasoning: 'N/A' },
+        differentiatedAngle: breakdown.differentiatedAngle || { score: 0, reasoning: 'N/A' },
+        smeFit: breakdown.smeFit || { score: 0, reasoning: 'N/A' },
+        searchContentGap: breakdown.searchContentGap || { score: 0, reasoning: 'N/A' },
+        conversionDistributionPotential: breakdown.conversionDistributionPotential || { score: 0, reasoning: 'N/A' },
+      };
 
+      // totalScore is always computed from the weighted rubric — never trusted
+      // from the LLM's self-reported number, which is not reliably consistent
+      // with the stated weights (25/15/15/15/10/10/10).
       return {
-        totalScore: Math.round(totalScore || 0),
+        totalScore: computeWeightedScore(normalizedBreakdown),
         confidence: parsed.confidence || 85,
-        breakdown: {
-          strategicRelevance: breakdown.strategicRelevance || { score: 0, reasoning: 'N/A' },
-          audienceIcpUsefulness: breakdown.audienceIcpUsefulness || { score: 0, reasoning: 'N/A' },
-          availableEvidenceAndDemand: breakdown.availableEvidenceAndDemand || { score: 0, reasoning: 'N/A' },
-          differentiatedAngle: breakdown.differentiatedAngle || { score: 0, reasoning: 'N/A' },
-          smeFit: breakdown.smeFit || { score: 0, reasoning: 'N/A' },
-          searchContentGap: breakdown.searchContentGap || { score: 0, reasoning: 'N/A' },
-          conversionDistributionPotential: breakdown.conversionDistributionPotential || { score: 0, reasoning: 'N/A' },
-        },
+        breakdown: normalizedBreakdown,
         overallRecommendation: parsed.overallRecommendation || 'Unable to determine',
       };
     } catch (error) {

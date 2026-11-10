@@ -195,6 +195,7 @@ export const topicCandidates = pgTable('topic_candidates', {
   geography: text('geography'),
   audience: text('audience'),
   targetOffering: text('target_offering'),
+  source: varchar('source', { length: 16 }).notNull().default('manual'), // 'ai' | 'manual' | 'document'
 
   // Scoring results (all required for display)
   score: integer('score').notNull().default(0), // 0-100 weighted score
@@ -211,6 +212,13 @@ export const topicCandidates = pgTable('topic_candidates', {
   cannibalizationRisk: jsonb('cannibalization_risk').notNull().default({ exists: false }),
   recommendedSmes: jsonb('recommended_smes').notNull().default([]),
   missingInputs: jsonb('missing_inputs').notNull().default([]),
+
+  // Source document (when topic is created by uploading a PDF/DOCX/TXT draft)
+  sourceContent: text('source_content'),
+  sourceFilename: text('source_filename'),
+
+  // Trend evidence from SERP (LinkedIn posts, recent articles, top sources, verdict)
+  trendEvidence: jsonb('trend_evidence'),
 
   // Metadata
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -248,7 +256,11 @@ export const articles = pgTable('articles', {
   generated_ctas: jsonb('generated_ctas'),
   selected_image: jsonb('selected_image'),
   generated_images: jsonb('generated_images').default([]),
+  // Source document (carried over from topic when created by uploading a PDF/DOCX/TXT draft)
+  source_content: text('source_content'),
+  source_filename: text('source_filename'),
   // Workflow states
+
   paused_reason: text('paused_reason'),
   blocked_reason: text('blocked_reason'),
   publish_date: timestamp('publish_date'),
